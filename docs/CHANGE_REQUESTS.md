@@ -120,3 +120,19 @@ Approved.
 
 ### Status
 Implemented in V1.2.0.
+## 2026-05-30 - Authentication Hardening
+
+### Requested By
+Ayman
+
+### Request
+Add Google Login and require email verification to prevent fake accounts and reduce abuse.
+
+### Decision
+Approved for V1.2.1.
+
+### Implementation
+- Added Google popup sign-in.
+- Sent verification email after password signup.
+- Blocked unverified password users from signing in.
+- Removed demo auth text.

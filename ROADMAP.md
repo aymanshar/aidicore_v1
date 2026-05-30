@@ -74,3 +74,12 @@
 - Mobile app
 - Push notifications
 - Offline draft impact records
+## Completed in V1.2.1
+- Google Login foundation.
+- Required email verification for password accounts.
+- Cleaner production authentication UI.
+
+## Next: V1.3.0
+- Real Admin Console backed by Firestore permissions.
+- Admin role bootstrap process.
+- Real impact review workflow.

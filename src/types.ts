@@ -16,7 +16,10 @@ export interface AppUser {
   createdAt: number;
   lastLogin: number;
   status: UserStatus;
+  emailVerified?: boolean;
+  provider?: 'password' | 'google' | 'demo';
 }
+
 
 export interface ImpactRecord {
   id: string;

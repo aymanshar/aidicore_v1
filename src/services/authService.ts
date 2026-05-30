@@ -1,10 +1,13 @@
 import {
   browserLocalPersistence,
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   onAuthStateChanged,
+  sendEmailVerification,
   sendPasswordResetEmail,
   setPersistence,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   updateProfile,
   type User,
@@ -36,11 +39,19 @@ function makeDemoUser(email: string, displayName?: string): AppUser {
     createdAt: Date.now(),
     lastLogin: Date.now(),
     status: 'active',
+    emailVerified: true,
+    provider: 'demo',
   };
 }
 
 function toFirebaseLikeUser(user: AppUser): User {
-  return { uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.avatarUrl || null } as User;
+  return {
+    uid: user.uid,
+    email: user.email,
+    displayName: user.displayName,
+    photoURL: user.avatarUrl || null,
+    emailVerified: user.emailVerified ?? true,
+  } as User;
 }
 
 function readDemoUser(): AppUser | null {
@@ -58,6 +69,42 @@ function writeDemoUser(user: AppUser | null) {
   demoEvents.dispatchEvent(new Event('change'));
 }
 
+function buildUserDoc(user: User, role: UserRole = 'user'): AppUser {
+  const provider = user.providerData.some((item) => item.providerId === 'google.com') ? 'google' : 'password';
+  return {
+    uid: user.uid,
+    displayName: user.displayName || user.email?.split('@')[0] || 'AidiCore User',
+    email: user.email || '',
+    avatarUrl: user.photoURL || undefined,
+    role,
+    impactScore: 0,
+    approvedActions: 0,
+    createdAt: Date.now(),
+    lastLogin: Date.now(),
+    status: 'active',
+    emailVerified: user.emailVerified,
+    provider,
+  };
+}
+
+async function ensureUserDocument(user: User, role: UserRole = 'user') {
+  if (!isFirebaseConfigured) return;
+  const ref = doc(db, 'users', user.uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    await setDoc(ref, { ...buildUserDoc(user, role), createdAtServer: serverTimestamp(), lastLoginServer: serverTimestamp() });
+    return;
+  }
+  await updateDoc(ref, {
+    displayName: user.displayName || snap.data().displayName || user.email?.split('@')[0] || 'AidiCore User',
+    email: user.email || snap.data().email || '',
+    avatarUrl: user.photoURL || snap.data().avatarUrl || '',
+    emailVerified: user.emailVerified,
+    lastLogin: Date.now(),
+    lastLoginServer: serverTimestamp(),
+  }).catch(() => null);
+}
+
 export function listenToAuth(callback: (user: User | null) => void) {
   if (!isFirebaseConfigured) {
     const emit = () => callback(readDemoUser() ? toFirebaseLikeUser(readDemoUser()!) : null);
@@ -66,7 +113,10 @@ export function listenToAuth(callback: (user: User | null) => void) {
     return () => demoEvents.removeEventListener('change', emit);
   }
   void setPersistence(auth, browserLocalPersistence).catch(() => null);
-  return onAuthStateChanged(auth, callback);
+  return onAuthStateChanged(auth, async (user) => {
+    if (user) await ensureUserDocument(user).catch(() => null);
+    callback(user);
+  });
 }
 
 export async function login(email: string, password: string) {
@@ -79,7 +129,12 @@ export async function login(email: string, password: string) {
   }
   await setPersistence(auth, browserLocalPersistence);
   const result = await signInWithEmailAndPassword(auth, email, password);
-  await updateDoc(doc(db, 'users', result.user.uid), { lastLogin: Date.now() }).catch(() => null);
+  await result.user.reload();
+  if (!result.user.emailVerified) {
+    await signOut(auth);
+    throw new Error('Please verify your email before signing in. Check your inbox for the verification link.');
+  }
+  await ensureUserDocument(result.user);
   await createAuditLog({ actorId: result.user.uid, actorEmail: result.user.email || undefined, action: 'auth_login', targetType: 'auth', targetId: result.user.uid, message: 'User login' }).catch(() => null);
   return result.user;
 }
@@ -94,20 +149,33 @@ export async function signup(email: string, password: string, displayName: strin
   await setPersistence(auth, browserLocalPersistence);
   const result = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(result.user, { displayName });
-  const userDoc: AppUser = {
-    uid: result.user.uid,
-    displayName,
-    email,
-    role: 'user',
-    impactScore: 0,
-    approvedActions: 0,
-    createdAt: Date.now(),
-    lastLogin: Date.now(),
-    status: 'active',
-  };
-  await setDoc(doc(db, 'users', result.user.uid), { ...userDoc, createdAtServer: serverTimestamp() });
-  await createAuditLog({ actorId: result.user.uid, actorEmail: email, action: 'auth_signup', targetType: 'auth', targetId: result.user.uid, message: 'User signup' }).catch(() => null);
+  await ensureUserDocument(result.user);
+  await sendEmailVerification(result.user);
+  await createAuditLog({ actorId: result.user.uid, actorEmail: email, action: 'auth_signup', targetType: 'auth', targetId: result.user.uid, message: 'User signup - verification email sent' }).catch(() => null);
+  await signOut(auth);
   return result.user;
+}
+
+export async function loginWithGoogle() {
+  if (!isFirebaseConfigured) {
+    const user = makeDemoUser('google.user@aidicore.local', 'Google User');
+    writeDemoUser({ ...user, provider: 'google', emailVerified: true });
+    await createAuditLog({ actorId: user.uid, actorEmail: user.email, action: 'auth_login', targetType: 'auth', targetId: user.uid, message: 'Demo Google login' });
+    return toFirebaseLikeUser(user);
+  }
+  await setPersistence(auth, browserLocalPersistence);
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  const result = await signInWithPopup(auth, provider);
+  await ensureUserDocument(result.user);
+  await createAuditLog({ actorId: result.user.uid, actorEmail: result.user.email || undefined, action: 'auth_login', targetType: 'auth', targetId: result.user.uid, message: 'Google login' }).catch(() => null);
+  return result.user;
+}
+
+export async function resendVerificationEmail() {
+  const user = auth.currentUser;
+  if (!isFirebaseConfigured || !user) return;
+  await sendEmailVerification(user);
 }
 
 export async function logout() {

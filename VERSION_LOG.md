@@ -98,3 +98,18 @@
 - AI-assisted safe text review.
 - Advanced Firestore rules.
 - Public analytics dashboard.
+## V1.2.1 - Authentication Hardening
+
+### Added
+- Google sign-in button for Login and Signup.
+- Email verification after Email/Password signup.
+- Automatic Firestore user document creation for Google and Email accounts.
+
+### Changed
+- Removed Demo Mode messaging from the production auth screen.
+- Email/Password users must verify their email before accessing the dashboard.
+- Improved authentication notices and error messages in Arabic and English.
+
+### Security Notes
+- Google authentication is now the preferred sign-in method.
+- Email verification reduces fake-account creation and improves account recovery trust.

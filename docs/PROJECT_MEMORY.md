@@ -140,3 +140,8 @@ V1.2.0 — Authentication, Firestore & Admin Foundation
 - First real Firebase admin must be bootstrapped manually by changing `users/{uid}.role` in Firestore.
 - User self-updates are intentionally limited in Firestore rules to prevent role/status self-escalation.
 - Impact approval currently updates user impact score from the client in MVP mode; future production hardening should move scoring/ledger logic into Cloud Functions.
+## V1.2.1 Auth Decision
+- Google sign-in is enabled and preferred.
+- Email/Password remains available, but users must verify their email before access.
+- Demo-mode login text was removed from the production UI.
+- User documents are created automatically in Firestore under `users/{uid}`.

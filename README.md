@@ -138,3 +138,12 @@ Every future change must update at least one of these files:
 - `ROADMAP.md` — planned future releases
 - `docs/PROJECT_MEMORY.md` — permanent product decisions
 - `docs/CHANGE_REQUESTS.md` — requested changes and decisions
+## V1.2.1 Authentication Update
+
+AidiCore now supports Google sign-in and Email/Password with required email verification.
+
+Recommended production providers:
+- Google: enabled and preferred.
+- Email/Password: enabled, verification required before access.
+
+After creating an email account, users must confirm the verification email before signing in.

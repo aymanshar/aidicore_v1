@@ -22,7 +22,7 @@ import { Layout } from './components/Layout';
 import { categories } from './data/categories';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
-import { login, resetPassword, signup, updateCurrentUserProfile } from './services/authService';
+import { login, loginWithGoogle, resetPassword, signup, updateCurrentUserProfile } from './services/authService';
 import {
   createImpactRecord,
   listAllImpactRecords,
@@ -374,7 +374,27 @@ function AuthScreen({ mode, setPage }: { mode: 'login' | 'signup'; setPage: (p: 
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
   const { lang } = useLanguage();
+
+  const friendlyError = (err: unknown) => {
+    const message = err instanceof Error ? err.message : 'Authentication failed';
+    if (message.includes('verify your email')) {
+      return lang === 'ar'
+        ? 'يرجى تأكيد بريدك الإلكتروني قبل تسجيل الدخول. افحص صندوق البريد أو الرسائل غير المرغوب فيها.'
+        : message;
+    }
+    if (message.includes('auth/invalid-credential') || message.includes('auth/wrong-password')) {
+      return lang === 'ar' ? 'بيانات الدخول غير صحيحة.' : 'Invalid email or password.';
+    }
+    if (message.includes('auth/email-already-in-use')) {
+      return lang === 'ar' ? 'هذا البريد مسجل بالفعل.' : 'This email is already registered.';
+    }
+    if (message.includes('auth/weak-password')) {
+      return lang === 'ar' ? 'كلمة المرور ضعيفة. استخدم 6 أحرف على الأقل.' : 'Password is too weak. Use at least 6 characters.';
+    }
+    return message;
+  };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -382,13 +402,36 @@ function AuthScreen({ mode, setPage }: { mode: 'login' | 'signup'; setPage: (p: 
     setNotice('');
     setSubmitting(true);
     try {
-      if (mode === 'login') await login(email, password);
-      else await signup(email, password, name || email.split('@')[0]);
-      setPage('dashboard');
+      if (mode === 'login') {
+        await login(email, password);
+        setPage('dashboard');
+      } else {
+        await signup(email, password, name || email.split('@')[0]);
+        setNotice(
+          lang === 'ar'
+            ? 'تم إنشاء الحساب. أرسلنا رسالة تأكيد إلى بريدك الإلكتروني. أكّد البريد ثم سجل الدخول.'
+            : 'Account created. We sent a verification email. Verify your email, then sign in.',
+        );
+        setPassword('');
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed');
+      setError(friendlyError(err));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const googleLogin = async () => {
+    setError('');
+    setNotice('');
+    setGoogleSubmitting(true);
+    try {
+      await loginWithGoogle();
+      setPage('dashboard');
+    } catch (err) {
+      setError(friendlyError(err));
+    } finally {
+      setGoogleSubmitting(false);
     }
   };
 
@@ -401,9 +444,9 @@ function AuthScreen({ mode, setPage }: { mode: 'login' | 'signup'; setPage: (p: 
     }
     try {
       await resetPassword(email);
-      setNotice(lang === 'ar' ? 'إذا كان Firebase مفعّلًا، سيتم إرسال رابط إعادة التعيين.' : 'If Firebase is configured, a reset link will be sent.');
+      setNotice(lang === 'ar' ? 'تم إرسال رابط إعادة تعيين كلمة المرور إذا كان البريد مسجلًا.' : 'If this email is registered, a password reset link has been sent.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Reset failed');
+      setError(friendlyError(err));
     }
   };
 
@@ -412,15 +455,37 @@ function AuthScreen({ mode, setPage }: { mode: 'login' | 'signup'; setPage: (p: 
       <div className="glass rounded-[2rem] p-8">
         <h1 className="text-3xl font-extrabold">{mode === 'login' ? (lang === 'ar' ? 'تسجيل الدخول' : 'Login') : (lang === 'ar' ? 'حساب جديد' : 'Create account')}</h1>
         <p className="mt-2 text-sm leading-6 text-slate-400">
-          {lang === 'ar' ? 'في وضع التجربة يمكنك استخدام أي بريد. اجعل البريد يحتوي admin لتجربة لوحة الإدارة.' : 'In demo mode, use any email. Include admin in the email to test the admin console.'}
+          {mode === 'login'
+            ? lang === 'ar'
+              ? 'سجّل الدخول بأمان عبر Google أو بريدك الإلكتروني المؤكّد.'
+              : 'Sign in securely with Google or your verified email.'
+            : lang === 'ar'
+              ? 'استخدم Google أو أنشئ حسابًا بالبريد الإلكتروني. يجب تأكيد البريد قبل الدخول.'
+              : 'Use Google or create an email account. Email accounts must be verified before access.'}
         </p>
+
+        <div className="mt-6 grid gap-4">
+          <button type="button" className="btn-soft justify-center bg-white text-slate-950 hover:bg-slate-100" disabled={googleSubmitting || submitting} onClick={googleLogin}>
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-lg font-extrabold text-blue-600">G</span>
+            {googleSubmitting ? (lang === 'ar' ? 'جارٍ فتح Google...' : 'Opening Google...') : (lang === 'ar' ? 'المتابعة باستخدام Google' : 'Continue with Google')}
+          </button>
+
+          <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-[.2em] text-slate-500">
+            <span className="h-px flex-1 bg-white/10" />
+            {lang === 'ar' ? 'أو' : 'or'}
+            <span className="h-px flex-1 bg-white/10" />
+          </div>
+        </div>
+
         <form onSubmit={submit} className="mt-6 grid gap-4">
           {mode === 'signup' && <input className="input" placeholder={lang === 'ar' ? 'الاسم' : 'Display name'} value={name} onChange={(event) => setName(event.target.value)} />}
           <input className="input" type="email" placeholder="Email" value={email} onChange={(event) => setEmail(event.target.value)} required />
           <input className="input" type="password" placeholder="Password" value={password} onChange={(event) => setPassword(event.target.value)} required />
           {error && <p className="rounded-2xl border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-200">{error}</p>}
           {notice && <p className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-sm text-emerald-200">{notice}</p>}
-          <button className="btn-primary justify-center" disabled={submitting} type="submit">{submitting ? (lang === 'ar' ? 'جارٍ المعالجة...' : 'Processing...') : mode === 'login' ? 'Login' : 'Sign up'}</button>
+          <button className="btn-primary justify-center" disabled={submitting || googleSubmitting} type="submit">
+            {submitting ? (lang === 'ar' ? 'جارٍ المعالجة...' : 'Processing...') : mode === 'login' ? (lang === 'ar' ? 'تسجيل الدخول' : 'Login') : (lang === 'ar' ? 'إنشاء حساب' : 'Sign up')}
+          </button>
           {mode === 'login' && <button type="button" className="text-sm text-slate-400 hover:text-white" onClick={forgotPassword}>{lang === 'ar' ? 'نسيت كلمة المرور؟' : 'Forgot password?'}</button>}
           <button type="button" className="text-sm text-slate-400 hover:text-white" onClick={() => setPage(mode === 'login' ? 'signup' : 'login')}>
             {mode === 'login' ? (lang === 'ar' ? 'تحتاج حساب؟ أنشئ حسابًا' : 'Need an account? Sign up') : (lang === 'ar' ? 'لديك حساب؟ سجل الدخول' : 'Already have an account? Login')}
