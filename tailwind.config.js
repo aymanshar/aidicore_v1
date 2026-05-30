@@ -1,0 +1,1 @@
+export default { content: ['./index.html','./src/**/*.{ts,tsx}'], theme: { extend: { fontFamily: { sans: ['Inter','Cairo','system-ui','sans-serif'] }, colors: { aidinavy:'#0F172A', aidiblue:'#2563EB', aidigreen:'#10B981', aidigold:'#F59E0B' } } }, plugins: [] };
