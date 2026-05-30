@@ -1,5 +1,35 @@
 # VERSION LOG
 
+## V1.2.0 — Authentication, Firestore & Admin Foundation
+
+### Added
+- Added Firebase Auth browser local persistence for more stable sessions.
+- Added password-reset flow from the Login screen.
+- Added real Profile page with display-name and avatar URL editing.
+- Added `services/userService.ts` for admin user listing, role updates, and status updates.
+- Added `services/auditService.ts` for audit log creation/listing in demo and Firebase modes.
+- Added `services/settingsService.ts` for app settings read/write flow.
+- Added Admin Console tabs: Overview, Impact Records, Users, Audit Logs, and Settings.
+- Added demo and Firestore duplicate same-day impact detection using `groupingKey`.
+- Added impact score and approved-action updates when an impact record is approved.
+
+### Changed
+- Updated package version to `1.2.0`.
+- Upgraded Dashboard metrics to use the user's actual impact records.
+- Expanded Admin from a simple pending queue into a multi-tab console.
+- Updated Footer version label to `1.2.0`.
+- Updated Firestore schema documentation to include settings and expanded audit logs.
+
+### Fixed
+- Hardened Firestore rules to reduce user self-escalation risk.
+- Restricted user self-updates to safe profile/session fields.
+- Added safer audit log create/read separation.
+- Added settings write protection for admin roles only.
+
+### Notes
+- Real Firebase admin bootstrapping still requires manually setting the first admin user in Firestore after signup.
+- Production-grade points/ledger logic should later move to Cloud Functions to avoid client-side authority.
+
 ## V1.1.0 — Design System Upgrade
 
 ### Added

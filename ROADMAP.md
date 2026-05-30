@@ -24,13 +24,16 @@
 - Safer `useEffect` data-loading patterns
 - Added PROJECT_MEMORY and CHANGE_REQUESTS documentation
 
-## V1.2 — Auth & Profile Stabilization
+## V1.2 — Auth, Firestore & Admin Foundation ✅
 - Real Firebase Auth UX polish
+- Browser local session persistence
+- Password reset flow
 - Profile editing
-- Avatar upload strategy
-- Better login/signup validation
-- Protected-route UX improvements
-- Session state loading skeletons
+- Admin Console tabs
+- User management foundation
+- Audit logs page
+- Settings page foundation
+- Firestore security rules hardening
 
 ## V1.3 — Impact Records Workflow
 - Better Record Impact form
@@ -41,12 +44,11 @@
 - My Impact filtering by status/category
 
 ## V1.4 — Admin Console Expansion
-- Admin tabs
-- Pending / approved / rejected queues
-- Audit note editor
-- User management foundation
-- Activity logs page
-- Settings page foundation
+- Pending / approved / rejected filters
+- Better audit note editor
+- Search and filtering for users
+- Admin analytics cards
+- Settings validation and safer defaults
 
 ## V1.5 — Trust & Quality
 - Advanced moderation filters

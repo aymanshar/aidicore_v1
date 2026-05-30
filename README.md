@@ -7,9 +7,9 @@ AidiCore is rebuilt from scratch as a React + TypeScript + Firebase product, usi
 
 ## Current Version
 
-**V1.1.0 — Design System Upgrade**
+**V1.2.0 — Authentication, Firestore & Admin Foundation**
 
-This version stabilizes the product identity and user-facing design foundation before deeper Firebase/Admin work.
+This version moves AidiCore from a visual prototype toward a real product foundation: stronger authentication UX, profile editing, Firestore-backed admin services, audit logs, settings, user management, and hardened Firebase rules.
 
 ## Stack
 
@@ -53,12 +53,26 @@ This version stabilizes the product identity and user-facing design foundation b
 - Improved Community Impact page with privacy/trust explanation cards
 - Improved About page with product principle cards
 - Improved Admin Console summary cards
-- Replaced unsafe render-time data loading with `useEffect` in public feed, my records, and admin review queue
+- Replaced unsafe render-time data loading with `useEffect`
 - Improved Navbar with clearer Record Impact CTA
 - Improved Footer with platform/legal sections
 - Added `PROJECT_MEMORY.md` as the long-term project decision reference
 - Added `CHANGE_REQUESTS.md` as the running change-request register
-- Updated documentation and package version to `1.1.0`
+
+### V1.2.0 Authentication, Firestore & Admin Foundation
+
+- Added stronger Firebase Auth session persistence using browser local persistence
+- Added password reset flow in Login
+- Added Profile page with display-name and avatar URL editing
+- Added reusable admin services for users, settings, and audit logs
+- Added Admin Console tabs: Overview, Impact Records, Users, Audit Logs, Settings
+- Added user role/status management foundation
+- Added app settings management foundation
+- Added audit logging for auth, profile, impact, review, user, and settings actions
+- Added duplicate same-day impact detection in demo and Firestore modes
+- Added impact score/approved-action update after approval
+- Hardened Firestore security rules for users, impact records, audit logs, and settings
+- Updated package version to `1.2.0`
 
 ## Install
 
@@ -91,21 +105,25 @@ In local demo mode, login with any email containing `admin`, for example:
 admin@aidicore.local
 ```
 
+For moderator demo mode, use any email containing `mod`.
+
 ## Firestore Collections
 
 - `users`
 - `impact_records`
 - `audit_logs`
-- `impact_scores` planned
-- `settings` planned
+- `settings`
+- `impact_scores` planned for later analytics/ledger separation
 
 ## Admin Access
 
-A user becomes admin when their `users/{uid}.role` is one of:
+A user becomes admin/moderator when their `users/{uid}.role` is one of:
 
 - `moderator`
 - `admin`
 - `super_admin`
+
+For a real Firebase project, create the first admin manually in Firestore by updating the user document role after signup.
 
 ## Important Product Rule
 

@@ -130,4 +130,13 @@ When product decisions or user requests change, also update:
 
 ## Current Version
 
-V1.1.0 — Design System Upgrade
+V1.2.0 — Authentication, Firestore & Admin Foundation
+
+## Latest Implementation Decisions
+
+- V1.2.0 added the first real admin-console structure with Overview, Impact Records, Users, Audit Logs, and Settings tabs.
+- Password reset is supported when Firebase is configured.
+- Profile editing supports display name and avatar URL first; real file upload can come later.
+- First real Firebase admin must be bootstrapped manually by changing `users/{uid}.role` in Firestore.
+- User self-updates are intentionally limited in Firestore rules to prevent role/status self-escalation.
+- Impact approval currently updates user impact score from the client in MVP mode; future production hardening should move scoring/ledger logic into Cloud Functions.

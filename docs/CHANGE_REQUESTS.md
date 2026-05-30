@@ -96,3 +96,27 @@ Approved.
 
 ### Status
 Implemented in V1.1.0.
+
+---
+
+## 2026-05-30 — Start V1.2 foundation hardening
+
+### Requested By
+Ayman
+
+### Request
+Start the next project step after V1.1.0, focusing on the real product foundation instead of only adding visual features.
+
+### Decision
+Approved.
+
+### Implementation
+- Added stronger authentication UX and password reset.
+- Added Profile page editing.
+- Added Admin Console tabs.
+- Added user management foundation.
+- Added audit logs and settings services.
+- Hardened Firestore rules.
+
+### Status
+Implemented in V1.2.0.

@@ -10,6 +10,11 @@ import {
   ShieldCheck,
   Sparkles,
   UserRoundCheck,
+  UsersRound,
+  ScrollText,
+  Settings2,
+  ShieldAlert,
+  UserCog,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
@@ -17,15 +22,19 @@ import { Layout } from './components/Layout';
 import { categories } from './data/categories';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
-import { login, signup } from './services/authService';
+import { login, resetPassword, signup, updateCurrentUserProfile } from './services/authService';
 import {
   createImpactRecord,
+  listAllImpactRecords,
   listMyImpactRecords,
   listPendingImpactRecords,
   listPublicImpactRecords,
   reviewImpactRecord,
 } from './services/impactService';
-import type { ImpactCategory, ImpactRecord, Visibility } from './types';
+import { listAuditLogs } from './services/auditService';
+import { getSettings, saveSettings } from './services/settingsService';
+import { listUsers, updateUserRole, updateUserStatus } from './services/userService';
+import type { AppSettings, AppUser, AuditLog, ImpactCategory, ImpactRecord, UserRole, UserStatus, Visibility } from './types';
 
 export type Page =
   | 'home'
@@ -68,6 +77,7 @@ function Router({ page, setPage }: { page: Page; setPage: (page: Page) => void }
   if (page === 'signup') return <AuthScreen mode="signup" setPage={setPage} />;
   if (page === 'dashboard') return <Dashboard setPage={setPage} />;
   if (page === 'record') return <RecordImpact setPage={setPage} />;
+  if (page === 'profile') return <Profile setPage={setPage} />;
   if (page === 'admin') return <Admin />;
   return <SimplePage page={page} />;
 }
@@ -362,17 +372,38 @@ function AuthScreen({ mode, setPage }: { mode: 'login' | 'signup'; setPage: (p: 
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const { lang } = useLanguage();
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setError('');
+    setNotice('');
+    setSubmitting(true);
     try {
       if (mode === 'login') await login(email, password);
       else await signup(email, password, name || email.split('@')[0]);
       setPage('dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const forgotPassword = async () => {
+    setError('');
+    setNotice('');
+    if (!email) {
+      setError(lang === 'ar' ? 'اكتب البريد الإلكتروني أولًا.' : 'Enter your email first.');
+      return;
+    }
+    try {
+      await resetPassword(email);
+      setNotice(lang === 'ar' ? 'إذا كان Firebase مفعّلًا، سيتم إرسال رابط إعادة التعيين.' : 'If Firebase is configured, a reset link will be sent.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Reset failed');
     }
   };
 
@@ -387,10 +418,12 @@ function AuthScreen({ mode, setPage }: { mode: 'login' | 'signup'; setPage: (p: 
           {mode === 'signup' && <input className="input" placeholder={lang === 'ar' ? 'الاسم' : 'Display name'} value={name} onChange={(event) => setName(event.target.value)} />}
           <input className="input" type="email" placeholder="Email" value={email} onChange={(event) => setEmail(event.target.value)} required />
           <input className="input" type="password" placeholder="Password" value={password} onChange={(event) => setPassword(event.target.value)} required />
-          {error && <p className="text-sm text-red-300">{error}</p>}
-          <button className="btn-primary justify-center" type="submit">{mode === 'login' ? 'Login' : 'Sign up'}</button>
+          {error && <p className="rounded-2xl border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-200">{error}</p>}
+          {notice && <p className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-sm text-emerald-200">{notice}</p>}
+          <button className="btn-primary justify-center" disabled={submitting} type="submit">{submitting ? (lang === 'ar' ? 'جارٍ المعالجة...' : 'Processing...') : mode === 'login' ? 'Login' : 'Sign up'}</button>
+          {mode === 'login' && <button type="button" className="text-sm text-slate-400 hover:text-white" onClick={forgotPassword}>{lang === 'ar' ? 'نسيت كلمة المرور؟' : 'Forgot password?'}</button>}
           <button type="button" className="text-sm text-slate-400 hover:text-white" onClick={() => setPage(mode === 'login' ? 'signup' : 'login')}>
-            {mode === 'login' ? 'Need an account? Sign up' : 'Already have an account? Login'}
+            {mode === 'login' ? (lang === 'ar' ? 'تحتاج حساب؟ أنشئ حسابًا' : 'Need an account? Sign up') : (lang === 'ar' ? 'لديك حساب؟ سجل الدخول' : 'Already have an account? Login')}
           </button>
         </form>
       </div>
@@ -401,30 +434,8 @@ function AuthScreen({ mode, setPage }: { mode: 'login' | 'signup'; setPage: (p: 
 function Dashboard({ setPage }: { setPage: (p: Page) => void }) {
   const { appUser, firebaseUser } = useAuth();
   const { lang } = useLanguage();
-  if (!firebaseUser) return <RequireLogin setPage={setPage} />;
-  return (
-    <Section>
-      <Title title={lang === 'ar' ? 'لوحة الأثر' : 'Impact Dashboard'} text={`${lang === 'ar' ? 'مرحبًا' : 'Welcome'}, ${appUser?.displayName || firebaseUser.email}`} />
-      <div className="grid gap-4 md:grid-cols-4">
-        <Metric title="Impact Score" value={String(appUser?.impactScore || 0)} />
-        <Metric title="Approved" value={String(appUser?.approvedActions || 0)} />
-        <Metric title="Pending" value="—" />
-        <Metric title="Categories" value="—" />
-      </div>
-      <div className="mt-8 flex flex-wrap gap-3">
-        <button className="btn-primary" onClick={() => setPage('record')}>{lang === 'ar' ? 'سجّل أثرًا' : 'Record Impact'}</button>
-        <button className="btn-soft" onClick={() => setPage('profile')}>{lang === 'ar' ? 'الملف الشخصي' : 'Profile'}</button>
-      </div>
-      <MyRecords />
-    </Section>
-  );
-}
-
-function MyRecords() {
-  const { firebaseUser } = useAuth();
   const [records, setRecords] = useState<ImpactRecord[]>([]);
   const [loading, setLoading] = useState(Boolean(firebaseUser));
-  const { lang } = useLanguage();
 
   useEffect(() => {
     if (!firebaseUser) return;
@@ -433,16 +444,87 @@ function MyRecords() {
       .then((items) => mounted && setRecords(items))
       .catch(() => mounted && setRecords([]))
       .finally(() => mounted && setLoading(false));
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [firebaseUser]);
 
+  if (!firebaseUser) return <RequireLogin setPage={setPage} />;
+
+  const pending = records.filter((record) => record.status === 'pending').length;
+  const approved = records.filter((record) => record.status === 'approved').length;
+  const categoriesCount = new Set(records.map((record) => record.category)).size;
+
+  return (
+    <Section>
+      <Title title={lang === 'ar' ? 'لوحة الأثر' : 'Impact Dashboard'} text={`${lang === 'ar' ? 'مرحبًا' : 'Welcome'}, ${appUser?.displayName || firebaseUser.email}`} />
+      <div className="grid gap-4 md:grid-cols-4">
+        <Metric title="Impact Score" value={String(appUser?.impactScore || approved * 10)} />
+        <Metric title={lang === 'ar' ? 'معتمد' : 'Approved'} value={loading ? '…' : String(approved)} />
+        <Metric title={lang === 'ar' ? 'قيد المراجعة' : 'Pending'} value={loading ? '…' : String(pending)} />
+        <Metric title={lang === 'ar' ? 'مجالات' : 'Categories'} value={loading ? '…' : String(categoriesCount)} />
+      </div>
+      <div className="mt-8 flex flex-wrap gap-3">
+        <button className="btn-primary" onClick={() => setPage('record')}>{lang === 'ar' ? 'سجّل أثرًا' : 'Record Impact'}</button>
+        <button className="btn-soft" onClick={() => setPage('profile')}>{lang === 'ar' ? 'الملف الشخصي' : 'Profile'}</button>
+      </div>
+      <MyRecords records={records} loading={loading} />
+    </Section>
+  );
+}
+
+function MyRecords({ records, loading }: { records: ImpactRecord[]; loading: boolean }) {
+  const { lang } = useLanguage();
   if (loading) return <div className="card mt-8 p-6 text-slate-300">{lang === 'ar' ? 'جارٍ تحميل أثرك...' : 'Loading your impact...'}</div>;
   return (
     <div className="mt-8 grid gap-3">
       {records.length === 0 ? <div className="card p-6 text-slate-300">{lang === 'ar' ? 'لم تسجل أي أثر بعد.' : 'No impact records yet.'}</div> : records.map((record) => <ImpactCard key={record.id} record={record} />)}
     </div>
+  );
+}
+
+function Profile({ setPage }: { setPage: (p: Page) => void }) {
+  const { firebaseUser, appUser, refreshUser } = useAuth();
+  const { lang } = useLanguage();
+  const [displayName, setDisplayName] = useState(appUser?.displayName || firebaseUser?.displayName || '');
+  const [avatarUrl, setAvatarUrl] = useState(appUser?.avatarUrl || firebaseUser?.photoURL || '');
+  const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDisplayName(appUser?.displayName || firebaseUser?.displayName || '');
+    setAvatarUrl(appUser?.avatarUrl || firebaseUser?.photoURL || '');
+  }, [appUser, firebaseUser]);
+
+  if (!firebaseUser) return <RequireLogin setPage={setPage} />;
+
+  const save = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setMessage('');
+    await updateCurrentUserProfile(firebaseUser, { displayName, avatarUrl });
+    await refreshUser();
+    setSaving(false);
+    setMessage(lang === 'ar' ? 'تم حفظ الملف الشخصي.' : 'Profile saved.');
+  };
+
+  return (
+    <Section className="max-w-3xl">
+      <Title title={lang === 'ar' ? 'الملف الشخصي' : 'Profile'} text={lang === 'ar' ? 'إدارة بيانات عامة فقط بدون كشف معلومات حساسة.' : 'Manage safe public profile details only.'} />
+      <form onSubmit={save} className="card grid gap-4 p-6">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl border border-white/10 bg-white/5 text-2xl font-extrabold text-emerald-200">
+            {avatarUrl ? <img src={avatarUrl} className="h-full w-full object-cover" alt="avatar" /> : (displayName || firebaseUser.email || 'A').slice(0, 1).toUpperCase()}
+          </div>
+          <div>
+            <div className="font-bold text-white">{firebaseUser.email}</div>
+            <div className="text-sm text-slate-400">{lang === 'ar' ? 'الدور' : 'Role'}: {appUser?.role || 'user'} · {lang === 'ar' ? 'الحالة' : 'Status'}: {appUser?.status || 'active'}</div>
+          </div>
+        </div>
+        <input className="input" placeholder={lang === 'ar' ? 'الاسم الظاهر' : 'Display name'} value={displayName} onChange={(event) => setDisplayName(event.target.value)} required />
+        <input className="input" placeholder={lang === 'ar' ? 'رابط صورة اختيارية' : 'Optional avatar URL'} value={avatarUrl} onChange={(event) => setAvatarUrl(event.target.value)} />
+        {message && <p className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-sm text-emerald-200">{message}</p>}
+        <button className="btn-primary justify-center" disabled={saving}>{saving ? (lang === 'ar' ? 'جارٍ الحفظ...' : 'Saving...') : (lang === 'ar' ? 'حفظ' : 'Save')}</button>
+      </form>
+    </Section>
   );
 }
 
@@ -518,58 +600,176 @@ function RecordImpact({ setPage }: { setPage: (p: Page) => void }) {
 }
 
 function Admin() {
-  const { isAdmin, firebaseUser } = useAuth();
+  const { isModerator, firebaseUser, appUser } = useAuth();
+  const [tab, setTab] = useState<'overview' | 'records' | 'users' | 'logs' | 'settings'>('overview');
   const [records, setRecords] = useState<ImpactRecord[]>([]);
+  const [allRecords, setAllRecords] = useState<ImpactRecord[]>([]);
+  const [users, setUsers] = useState<AppUser[]>([]);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const { lang } = useLanguage();
 
-  useEffect(() => {
-    if (!isAdmin) {
+  const loadAdminData = async () => {
+    if (!isModerator) {
       setLoading(false);
       return;
     }
-    let mounted = true;
-    listPendingImpactRecords()
-      .then((items) => mounted && setRecords(items))
-      .catch(() => mounted && setRecords([]))
-      .finally(() => mounted && setLoading(false));
-    return () => {
-      mounted = false;
-    };
-  }, [isAdmin]);
+    setLoading(true);
+    const [pending, all, appUsers, auditItems, appSettings] = await Promise.all([
+      listPendingImpactRecords().catch(() => []),
+      listAllImpactRecords().catch(() => []),
+      listUsers().catch(() => []),
+      listAuditLogs().catch(() => []),
+      getSettings().catch(() => null),
+    ]);
+    setRecords(pending);
+    setAllRecords(all);
+    setUsers(appUsers);
+    setLogs(auditItems);
+    setSettings(appSettings);
+    setLoading(false);
+  };
 
-  if (!isAdmin) return <Section><div className="card p-8">Admin access required.</div></Section>;
+  useEffect(() => { void loadAdminData(); }, [isModerator]);
+
+  if (!isModerator) return <Section><div className="card p-8">Admin/moderator access required.</div></Section>;
+
+  const tabs: { id: typeof tab; label: string; icon: ReactNode }[] = [
+    { id: 'overview', label: lang === 'ar' ? 'نظرة عامة' : 'Overview', icon: <ShieldCheck size={16} /> },
+    { id: 'records', label: lang === 'ar' ? 'سجلات الأثر' : 'Impact Records', icon: <ClipboardCheck size={16} /> },
+    { id: 'users', label: lang === 'ar' ? 'المستخدمون' : 'Users', icon: <UsersRound size={16} /> },
+    { id: 'logs', label: lang === 'ar' ? 'السجلات' : 'Audit Logs', icon: <ScrollText size={16} /> },
+    { id: 'settings', label: lang === 'ar' ? 'الإعدادات' : 'Settings', icon: <Settings2 size={16} /> },
+  ];
 
   const review = async (record: ImpactRecord, status: 'approved' | 'rejected') => {
-    await reviewImpactRecord(record.id, status, firebaseUser!.uid, status);
-    setRecords((current) => current.filter((item) => item.id !== record.id));
+    const note = window.prompt(status === 'approved' ? 'Approval note' : 'Rejection note', status) || status;
+    await reviewImpactRecord(record.id, status, firebaseUser!.uid, note, firebaseUser?.email || undefined);
+    await loadAdminData();
   };
+
+  const updateRole = async (uid: string, role: UserRole) => {
+    await updateUserRole(uid, role, firebaseUser!.uid, firebaseUser?.email || undefined);
+    await loadAdminData();
+  };
+
+  const updateStatus = async (uid: string, status: UserStatus) => {
+    await updateUserStatus(uid, status, firebaseUser!.uid, firebaseUser?.email || undefined);
+    await loadAdminData();
+  };
+
+  const saveAdminSettings = async () => {
+    if (!settings || !firebaseUser) return;
+    await saveSettings(settings, firebaseUser.uid, firebaseUser.email || undefined);
+    await loadAdminData();
+  };
+
+  const approved = allRecords.filter((record) => record.status === 'approved').length;
+  const rejected = allRecords.filter((record) => record.status === 'rejected').length;
 
   return (
     <Section>
-      <Title title={lang === 'ar' ? 'لوحة الإدارة' : 'Admin Console'} text={lang === 'ar' ? 'مراجعة الأثر، الاحتيال، والملاحظات.' : 'Review queue, fraud score and audit notes.'} />
-      <div className="mb-8 grid gap-4 md:grid-cols-3">
-        <Metric title="Pending Review" value={loading ? '…' : String(records.length)} />
-        <Metric title="Audit Required" value={loading ? '…' : String(records.filter((record) => record.auditRequired).length)} />
-        <Metric title="Review Mode" value="V1.1" />
-      </div>
-      <div className="grid gap-4">
-        {loading ? <div className="card p-6 text-slate-300">Loading pending records...</div> : records.length === 0 ? <div className="card p-6 text-slate-300">No pending records.</div> : records.map((record) => (
-          <div key={record.id} className="card p-5">
-            <div className="flex flex-wrap justify-between gap-4">
-              <div>
-                <h3 className="font-bold">{record.title}</h3>
-                <p className="text-sm text-slate-400">{record.city} · Fraud {record.fraudScore}/100 · {record.auditRequired ? 'Audit required' : 'Standard'}</p>
-              </div>
-              <div className="flex gap-2">
-                <button className="btn-soft !py-2" onClick={() => review(record, 'rejected')}>Reject</button>
-                <button className="btn-primary !py-2" onClick={() => review(record, 'approved')}>Approve</button>
-              </div>
-            </div>
-            <p className="mt-3 text-sm text-slate-300">{record.details}</p>
-          </div>
+      <Title title={lang === 'ar' ? 'لوحة الإدارة' : 'Admin Console'} text={lang === 'ar' ? 'مراجعة الأثر، إدارة المستخدمين، وسجل التدقيق.' : 'Review impact, manage users, and inspect audit activity.'} />
+      <div className="mb-6 flex flex-wrap gap-2">
+        {tabs.map((item) => (
+          <button key={item.id} className={`${tab === item.id ? 'btn-primary' : 'btn-soft'} !px-4 !py-2`} onClick={() => setTab(item.id)}>
+            {item.icon}{item.label}
+          </button>
         ))}
       </div>
+
+      {loading ? <div className="card p-6 text-slate-300">Loading admin data...</div> : (
+        <>
+          {tab === 'overview' && (
+            <div className="grid gap-4 md:grid-cols-4">
+              <Metric title={lang === 'ar' ? 'قيد المراجعة' : 'Pending Review'} value={String(records.length)} />
+              <Metric title={lang === 'ar' ? 'معتمد' : 'Approved'} value={String(approved)} />
+              <Metric title={lang === 'ar' ? 'مرفوض' : 'Rejected'} value={String(rejected)} />
+              <Metric title={lang === 'ar' ? 'المستخدمون' : 'Users'} value={String(users.length)} />
+            </div>
+          )}
+
+          {tab === 'records' && (
+            <div className="grid gap-4">
+              {records.length === 0 ? <div className="card p-6 text-slate-300">No pending records.</div> : records.map((record) => (
+                <div key={record.id} className="card p-5">
+                  <div className="flex flex-wrap justify-between gap-4">
+                    <div>
+                      <h3 className="font-bold">{record.title}</h3>
+                      <p className="text-sm text-slate-400">{record.city} · Fraud {record.fraudScore}/100 · {record.auditRequired ? 'Audit required' : 'Standard'} · {record.visibility}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button className="btn-soft !py-2" onClick={() => review(record, 'rejected')}>Reject</button>
+                      <button className="btn-primary !py-2" onClick={() => review(record, 'approved')}>Approve</button>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm text-slate-300">{record.details}</p>
+                  {record.auditNote && <p className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 p-3 text-sm text-amber-100"><ShieldAlert className="inline" size={16} /> {record.auditNote}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {tab === 'users' && (
+            <div className="grid gap-3">
+              {users.length === 0 ? <div className="card p-6 text-slate-300">No users found yet.</div> : users.map((user) => (
+                <div key={user.uid} className="card flex flex-wrap items-center justify-between gap-4 p-5">
+                  <div>
+                    <div className="font-bold text-white">{user.displayName}</div>
+                    <div className="text-sm text-slate-400">{user.email} · {user.role} · {user.status}</div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <select className="input !w-auto !py-2" value={user.role} onChange={(event) => updateRole(user.uid, event.target.value as UserRole)} disabled={appUser?.role !== 'super_admin' && user.role === 'super_admin'}>
+                      <option value="user">user</option>
+                      <option value="moderator">moderator</option>
+                      <option value="admin">admin</option>
+                      <option value="super_admin">super_admin</option>
+                    </select>
+                    <select className="input !w-auto !py-2" value={user.status} onChange={(event) => updateStatus(user.uid, event.target.value as UserStatus)}>
+                      <option value="active">active</option>
+                      <option value="suspended">suspended</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {tab === 'logs' && (
+            <div className="grid gap-3">
+              {logs.length === 0 ? <div className="card p-6 text-slate-300">No audit logs yet.</div> : logs.map((log) => (
+                <div key={log.id} className="card p-5">
+                  <div className="flex flex-wrap justify-between gap-3">
+                    <div className="font-bold text-white">{log.action}</div>
+                    <div className="text-xs text-slate-500">{new Date(log.createdAt).toLocaleString()}</div>
+                  </div>
+                  <p className="mt-2 text-sm text-slate-300">{log.message}</p>
+                  <p className="mt-1 text-xs text-slate-500">{log.actorEmail || log.actorId} → {log.targetType}/{log.targetId}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {tab === 'settings' && settings && (
+            <div className="card grid gap-4 p-6">
+              <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 p-4">
+                <span>{lang === 'ar' ? 'المراجعة مطلوبة افتراضيًا' : 'Review required by default'}</span>
+                <input type="checkbox" checked={settings.reviewRequiredByDefault} onChange={(event) => setSettings({ ...settings, reviewRequiredByDefault: event.target.checked })} />
+              </label>
+              <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 p-4">
+                <span>{lang === 'ar' ? 'تفعيل الأثر العام' : 'Enable public feed'}</span>
+                <input type="checkbox" checked={settings.publicFeedEnabled} onChange={(event) => setSettings({ ...settings, publicFeedEnabled: event.target.checked })} />
+              </label>
+              <label className="grid gap-2">
+                <span>{lang === 'ar' ? 'الحد اليومي لكل مستخدم' : 'Daily record limit per user'}</span>
+                <input className="input" type="number" min={1} max={50} value={settings.maxDailyRecordsPerUser} onChange={(event) => setSettings({ ...settings, maxDailyRecordsPerUser: Number(event.target.value) })} />
+              </label>
+              <button className="btn-primary justify-center" onClick={saveAdminSettings}><UserCog size={18} />{lang === 'ar' ? 'حفظ الإعدادات' : 'Save Settings'}</button>
+            </div>
+          )}
+        </>
+      )}
     </Section>
   );
 }
