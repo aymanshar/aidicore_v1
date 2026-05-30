@@ -79,6 +79,11 @@
 - Required email verification for password accounts.
 - Cleaner production authentication UI.
 
+## Completed in V1.2.2
+- Fixed Firestore signup failure caused by unsupported `undefined` values.
+- Normalized avatar URL handling for Email/Password and Google accounts.
+- Added safer audit-log payload sanitization.
+
 ## Next: V1.3.0
 - Real Admin Console backed by Firestore permissions.
 - Admin role bootstrap process.

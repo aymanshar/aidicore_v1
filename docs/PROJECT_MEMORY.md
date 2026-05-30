@@ -130,7 +130,7 @@ When product decisions or user requests change, also update:
 
 ## Current Version
 
-V1.2.0 — Authentication, Firestore & Admin Foundation
+V1.2.2 — Signup Firestore Hotfix
 
 ## Latest Implementation Decisions
 
@@ -145,3 +145,10 @@ V1.2.0 — Authentication, Firestore & Admin Foundation
 - Email/Password remains available, but users must verify their email before access.
 - Demo-mode login text was removed from the production UI.
 - User documents are created automatically in Firestore under `users/{uid}`.
+
+## V1.2.2 Hotfix Decision
+- Firestore must never receive `undefined` values.
+- Optional user fields that may not exist, such as avatar URL, should use `null` or be omitted intentionally.
+- For AidiCore user profiles, `avatarUrl` is now allowed as `string | null`.
+- Audit log payloads are sanitized before Firestore writes to prevent hidden optional-field errors.
+

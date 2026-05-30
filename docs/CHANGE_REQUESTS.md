@@ -136,3 +136,24 @@ Approved for V1.2.1.
 - Sent verification email after password signup.
 - Blocked unverified password users from signing in.
 - Removed demo auth text.
+---
+
+## 2026-05-30 - Signup Firestore Hotfix
+
+### Requested By
+Ayman
+
+### Issue
+Real Email/Password signup failed because Firestore rejected `avatarUrl: undefined` in `users/{uid}`.
+
+### Decision
+Approved as V1.2.2 hotfix.
+
+### Implementation
+- Changed missing avatar URLs from `undefined` to `null`.
+- Updated `AppUser.avatarUrl` type.
+- Sanitized audit log payloads before writing to Firestore.
+
+### Status
+Implemented in V1.2.2.
+

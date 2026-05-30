@@ -82,7 +82,7 @@ export async function createImpactRecord(input: { userId: string; userDisplayNam
       fraudScore: duplicate ? Math.min(100, fraud.score + 35) : fraud.score,
       auditRequired: duplicate || fraud.auditRequired,
       auditStatus: duplicate || fraud.auditRequired ? 'queued' : 'not_required',
-      auditNote: duplicate ? 'Possible duplicate same-day impact record.' : undefined,
+      auditNote: duplicate ? 'Possible duplicate same-day impact record.' : '',
       groupingKey,
       groupWindow: 'daily',
       createdAt: Date.now(),

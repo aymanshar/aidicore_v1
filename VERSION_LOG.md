@@ -1,5 +1,22 @@
 # VERSION LOG
 
+## V1.2.2 — Signup Firestore Hotfix
+
+### Fixed
+- Fixed Firestore signup failure caused by `avatarUrl` being written as `undefined`.
+- Updated `AppUser.avatarUrl` typing to support `string | null`.
+- Normalized user profile writes to use `null` instead of `undefined` for missing avatar URLs.
+- Removed `undefined` values from audit log payloads before writing to Firestore.
+- Normalized optional demo audit notes to empty strings to avoid future Firestore payload issues.
+
+### Changed
+- Updated package version to `1.2.2`.
+- Updated Footer version label to `1.2.2`.
+
+### Notes
+- This is a hotfix release for the first real Firebase signup test after V1.2.1.
+- Build was verified successfully with `npm run build`.
+
 ## V1.2.0 — Authentication, Firestore & Admin Foundation
 
 ### Added

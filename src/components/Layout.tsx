@@ -119,7 +119,7 @@ export function Layout({ page, setPage, children }: { page: Page; setPage: (page
           <FooterLinks title={lang === 'ar' ? 'المنصة' : 'Platform'} items={nav} go={go} />
           <FooterLinks title={lang === 'ar' ? 'القانون والتواصل' : 'Legal & Contact'} items={[{ key: 'privacy', label: 'Privacy' }, { key: 'terms', label: 'Terms' }, { key: 'contact', label: 'Contact' }]} go={go} />
         </div>
-        <div className="mx-auto mt-8 max-w-7xl border-t border-white/10 pt-6 text-xs">AidiCore © 2026 — Version 1.2.0 Auth & Admin Foundation</div>
+        <div className="mx-auto mt-8 max-w-7xl border-t border-white/10 pt-6 text-xs">AidiCore © 2026 — Version 1.2.2 Auth Hotfix</div>
       </footer>
     </div>
   );

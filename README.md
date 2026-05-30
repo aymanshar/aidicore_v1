@@ -7,9 +7,9 @@ AidiCore is rebuilt from scratch as a React + TypeScript + Firebase product, usi
 
 ## Current Version
 
-**V1.2.0 — Authentication, Firestore & Admin Foundation**
+**V1.2.2 — Signup Firestore Hotfix**
 
-This version moves AidiCore from a visual prototype toward a real product foundation: stronger authentication UX, profile editing, Firestore-backed admin services, audit logs, settings, user management, and hardened Firebase rules.
+This version fixes the first real Firebase signup issue found after enabling Google Login and Email Verification. User documents now avoid unsupported `undefined` values in Firestore, especially for missing avatar URLs.
 
 ## Stack
 
@@ -73,6 +73,15 @@ This version moves AidiCore from a visual prototype toward a real product founda
 - Added impact score/approved-action update after approval
 - Hardened Firestore security rules for users, impact records, audit logs, and settings
 - Updated package version to `1.2.0`
+
+
+### V1.2.2 Signup Firestore Hotfix
+
+- Fixed Firestore signup failure caused by `avatarUrl: undefined`
+- Updated `AppUser.avatarUrl` to support `string | null`
+- Normalized user profile writes to use `null` for missing avatar URLs
+- Sanitized audit log payloads before writing to Firestore
+- Updated package version to `1.2.2`
 
 ## Install
 

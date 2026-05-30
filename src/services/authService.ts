@@ -75,7 +75,7 @@ function buildUserDoc(user: User, role: UserRole = 'user'): AppUser {
     uid: user.uid,
     displayName: user.displayName || user.email?.split('@')[0] || 'AidiCore User',
     email: user.email || '',
-    avatarUrl: user.photoURL || undefined,
+    avatarUrl: user.photoURL || null,
     role,
     impactScore: 0,
     approvedActions: 0,
@@ -98,7 +98,7 @@ async function ensureUserDocument(user: User, role: UserRole = 'user') {
   await updateDoc(ref, {
     displayName: user.displayName || snap.data().displayName || user.email?.split('@')[0] || 'AidiCore User',
     email: user.email || snap.data().email || '',
-    avatarUrl: user.photoURL || snap.data().avatarUrl || '',
+    avatarUrl: user.photoURL || snap.data().avatarUrl || null,
     emailVerified: user.emailVerified,
     lastLogin: Date.now(),
     lastLoginServer: serverTimestamp(),
@@ -210,6 +210,6 @@ export async function updateCurrentUserProfile(user: User, updates: { displayNam
     return;
   }
   await updateProfile(user, { displayName: updates.displayName, photoURL: updates.avatarUrl || null });
-  await updateDoc(doc(db, 'users', user.uid), { displayName: updates.displayName, avatarUrl: updates.avatarUrl || '' });
+  await updateDoc(doc(db, 'users', user.uid), { displayName: updates.displayName, avatarUrl: updates.avatarUrl || null });
   await createAuditLog({ actorId: user.uid, actorEmail: user.email || undefined, action: 'update_profile', targetType: 'user', targetId: user.uid, message: 'Updated profile' }).catch(() => null);
 }

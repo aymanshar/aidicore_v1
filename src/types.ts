@@ -10,7 +10,7 @@ export interface AppUser {
   displayName: string;
   email: string;
   role: UserRole;
-  avatarUrl?: string;
+  avatarUrl?: string | null;
   impactScore: number;
   approvedActions: number;
   createdAt: number;
