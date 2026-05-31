@@ -125,7 +125,7 @@ export function Layout({ page, setPage, children }: { page: Page; setPage: (page
           <FooterLinks title={copy(lang, 'المنصة', 'Platform', 'Plateforme')} items={nav} go={go} />
           <FooterLinks title={copy(lang, 'القانون والتواصل', 'Legal & Contact', 'Légal & contact')} items={[{ key: 'privacy', label: 'Privacy' }, { key: 'terms', label: 'Terms' }, { key: 'contact', label: 'Contact' }]} go={go} />
         </div>
-        <div className="mx-auto mt-8 max-w-7xl border-t border-white/10 pt-6 text-xs">AidiCore © 2026 — Version 1.5.0 Impact Passport Foundation</div>
+        <div className="mx-auto mt-8 max-w-7xl border-t border-white/10 pt-6 text-xs">AidiCore © 2026 — v1.7.2</div>
       </footer>
     </div>
   );

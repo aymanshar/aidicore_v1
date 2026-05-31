@@ -1,3 +1,13 @@
+
+## V1.7.2 - User-Led Verification Links
+
+- Moved verification link creation to the user dashboard so the impact owner sends it to the helped person or a witness.
+- Verification can be completed by an existing user or by a new user after account creation.
+- Self-verification remains blocked and recorded as a rejected trust event.
+- Trusted verifiers receive a slightly higher internal verification weight while new accounts receive a lower weight.
+- Admin console now monitors verification activity instead of generating verification links by default.
+- Updated footer/app version to v1.7.2.
+
 # AidiCore Roadmap
 
 ## V1.0 — Foundation
@@ -204,3 +214,13 @@ These remain privacy-safe categories and do not require exposing personal data.
 - Added UID and impact index visibility in Admin Users for debugging duplicate user documents.
 - Updated Firestore rules to allow super admin user profile deletion and alias cleanup.
 - Clarified that deleting a user profile from Firestore does not delete the Firebase Auth account.
+
+
+## V1.7.2 - Trust Verification Polish
+
+- Polished verification link experience with clearer one-time-use and admin-review messaging.
+- Added visible latest verification link panel in Admin after link generation.
+- Added confirmed, pending, and flagged verification metrics in Admin overview.
+- Improved verification activity log details: status, time, owner, verifier, weight, penalty, and risk flags.
+- Updated Firestore rules so self-verification attempts are stored as rejected/flagged audit events instead of failing with a generic permissions error.
+- Updated footer/app version to v1.7.2.

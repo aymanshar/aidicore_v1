@@ -86,16 +86,26 @@ service cloud.firestore {
     }
 
     match /impact_verifications/{id} {
-      allow read: if isModerator() || (signedIn() && (resource.data.impactOwnerId == request.auth.uid || resource.data.verifierId == request.auth.uid));
+      allow read: if isModerator() || (signedIn() && (resource.data.status == 'pending' || resource.data.impactOwnerId == request.auth.uid || resource.data.verifierId == request.auth.uid));
       allow create: if signedIn()
         && request.resource.data.createdBy == request.auth.uid
+        && (request.resource.data.impactOwnerId == request.auth.uid || isModerator())
         && request.resource.data.status == 'pending'
         && request.resource.data.weight == 0
         && request.resource.data.penalty == 0;
+      // A verifier may consume a pending link exactly once. Self-verification is allowed
+      // to be written only so the app can store a rejected/flagged audit trail instead
+      // of failing with a generic permissions error.
       allow update: if signedIn()
         && resource.data.status == 'pending'
+        && request.resource.data.impactId == resource.data.impactId
+        && request.resource.data.impactOwnerId == resource.data.impactOwnerId
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.tokenHash == resource.data.tokenHash
         && request.resource.data.verifierId == request.auth.uid
-        && request.resource.data.impactOwnerId != request.auth.uid;
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'verifierId', 'verifierEmail', 'weight', 'penalty', 'riskFlags', 'confirmedAt'
+        ]);
       allow delete: if isSuperAdmin();
     }
 

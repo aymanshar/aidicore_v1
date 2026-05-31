@@ -40,7 +40,7 @@ import { getSettings, saveSettings } from './services/settingsService';
 import { deleteUserProfile, listUsers, updateUserRole, updateUserStatus } from './services/userService';
 import { confirmVerificationLink, createVerificationLink, listVerificationLinks } from './services/verificationService';
 import { AVATARS, calculateGrowthStage, getAvatar, getSafeDisplayName, isAliasAvailable, normalizeAlias, suggestAliases, validateAlias } from './services/passportService';
-import type { AppSettings, AppUser, AuditLog, CommunityImpactStats, ImpactCategory, ImpactRecord, ImpactVerification, UserRole, UserStatus, Visibility } from './types';
+import type { AppSettings, AppUser, AuditLog, CommunityImpactStats, ImpactCategory, ImpactRecord, ImpactStatus, ImpactVerification, UserRole, UserStatus, Visibility } from './types';
 
 export type Page =
   | 'home'
@@ -573,6 +573,9 @@ function Dashboard({ setPage }: { setPage: (p: Page) => void }) {
   const { lang } = useLanguage();
   const [records, setRecords] = useState<ImpactRecord[]>([]);
   const [loading, setLoading] = useState(Boolean(firebaseUser));
+  const [verificationMessage, setVerificationMessage] = useState('');
+  const [latestVerificationLink, setLatestVerificationLink] = useState('');
+  const [creatingVerificationId, setCreatingVerificationId] = useState('');
 
   useEffect(() => {
     if (!firebaseUser) return;
@@ -590,6 +593,24 @@ function Dashboard({ setPage }: { setPage: (p: Page) => void }) {
   const approved = records.filter((record) => record.status === 'approved').length;
   const categoriesCount = new Set(records.map((record) => record.category)).size;
 
+  const createMyVerificationLink = async (record: ImpactRecord) => {
+    if (!firebaseUser || record.userId !== firebaseUser.uid || record.status === 'rejected') return;
+    setCreatingVerificationId(record.id);
+    setVerificationMessage('');
+    setLatestVerificationLink('');
+    try {
+      const result = await createVerificationLink(record, firebaseUser.uid, firebaseUser.email || undefined);
+      const link = `${window.location.origin}?verify=${result.id}&token=${result.token}`;
+      setLatestVerificationLink(link);
+      await navigator.clipboard?.writeText(link).catch(() => null);
+      setVerificationMessage(copy(lang, 'تم إنشاء رابط التزكية ونسخه. أرسله للشخص الذي ساعدته أو الشاهد. يجب أن يسجل الدخول أو ينشئ حسابًا لتأكيد الفعل، ولا يمكن لصاحب الأثر تأكيد فعله بنفسه.', 'Verification link created and copied. Send it to the person you helped or a witness. They must sign in or create an account to verify, and the impact owner cannot self-verify.', 'Lien de vérification créé et copié. Envoyez-le à la personne aidée ou à un témoin.'));
+    } catch (error) {
+      setVerificationMessage(error instanceof Error ? error.message : copy(lang, 'تعذر إنشاء رابط التزكية.', 'Could not create verification link.', 'Impossible de créer le lien.'));
+    } finally {
+      setCreatingVerificationId('');
+    }
+  };
+
   return (
     <Section>
       <Title title={copy(lang, 'لوحة الأثر', 'Impact Dashboard', 'Tableau d’impact')} text={`${copy(lang, 'مرحبًا', 'Welcome', 'Bienvenue')}, ${getSafeDisplayName(appUser) || firebaseUser.email}`} />
@@ -603,17 +624,57 @@ function Dashboard({ setPage }: { setPage: (p: Page) => void }) {
         <button className="btn-primary" onClick={() => setPage('record')}>{copy(lang, 'سجّل أثرًا', 'Record Impact', 'Enregistrer un impact')}</button>
         <button className="btn-soft" onClick={() => setPage('profile')}>{copy(lang, 'جواز الأثر', 'Impact Passport', 'Passeport d’impact')}</button>
       </div>
-      <MyRecords records={records} loading={loading} />
+      {(verificationMessage || latestVerificationLink) && (
+        <div className="card mt-6 p-5">
+          {verificationMessage && <p className="text-sm leading-7 text-emerald-100">{verificationMessage}</p>}
+          {latestVerificationLink && (
+            <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center">
+              <div dir="ltr" className="flex-1 break-all rounded-2xl border border-white/10 bg-slate-950/60 p-3 text-xs text-slate-200">{latestVerificationLink}</div>
+              <button className="btn-soft !py-2" onClick={() => navigator.clipboard?.writeText(latestVerificationLink)}>{copy(lang, 'نسخ الرابط', 'Copy link', 'Copier')}</button>
+            </div>
+          )}
+        </div>
+      )}
+      <MyRecords records={records} loading={loading} creatingVerificationId={creatingVerificationId} onCreateVerificationLink={createMyVerificationLink} />
     </Section>
   );
 }
 
-function MyRecords({ records, loading }: { records: ImpactRecord[]; loading: boolean }) {
+function MyRecords({ records, loading, creatingVerificationId, onCreateVerificationLink }: { records: ImpactRecord[]; loading: boolean; creatingVerificationId: string; onCreateVerificationLink: (record: ImpactRecord) => void }) {
   const { lang } = useLanguage();
   if (loading) return <div className="card mt-8 p-6 text-slate-300">{lang === 'ar' ? 'جارٍ تحميل أثرك...' : 'Loading your impact...'}</div>;
+  const statusLabel = (status: ImpactStatus) => status === 'approved'
+    ? copy(lang, 'معتمد', 'Approved', 'Approuvé')
+    : status === 'rejected'
+      ? copy(lang, 'مرفوض', 'Rejected', 'Rejeté')
+      : copy(lang, 'قيد المراجعة', 'Pending review', 'En attente');
   return (
     <div className="mt-8 grid gap-3">
-      {records.length === 0 ? <div className="card p-6 text-slate-300">{lang === 'ar' ? 'لم تسجل أي أثر بعد.' : 'No impact records yet.'}</div> : records.map((record) => <ImpactCard key={record.id} record={record} />)}
+      {records.length === 0 ? <div className="card p-6 text-slate-300">{lang === 'ar' ? 'لم تسجل أي أثر بعد.' : 'No impact records yet.'}</div> : records.map((record) => (
+        <div key={record.id} className="card p-5">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+            <div>
+              <h3 className="font-bold text-white">{record.title}</h3>
+              <p className="mt-1 text-sm text-slate-400">{record.city}, {record.countryCode} · {categoryLabel(categories.find((item) => item.id === record.category) || categories[0], lang)}</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-slate-300">{statusLabel(record.status)}</span>
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-slate-300">{copy(lang, 'تزكيات', 'Verifications', 'Vérifications')}: {record.verificationCount || 0}</span>
+                {record.verificationRiskFlags?.length ? <span className="rounded-full border border-red-400/20 bg-red-500/10 px-3 py-1 text-red-200">{copy(lang, 'تحتاج مراجعة ثقة', 'Trust review needed', 'Contrôle confiance')}</span> : null}
+              </div>
+            </div>
+            <button
+              className="btn-soft justify-center !py-2"
+              disabled={record.status === 'rejected' || creatingVerificationId === record.id}
+              onClick={() => onCreateVerificationLink(record)}
+            >
+              {creatingVerificationId === record.id
+                ? copy(lang, 'جارٍ إنشاء الرابط...', 'Creating link...', 'Création...')
+                : copy(lang, 'إرسال رابط تزكية', 'Send verification link', 'Envoyer lien')}
+            </button>
+          </div>
+          <p className="mt-3 text-xs leading-6 text-slate-500">{copy(lang, 'أرسل الرابط لمن ساعدته أو لشاهد حضر الفعل. يمكنه تسجيل الدخول أو إنشاء حساب جديد للتأكيد. التزكية لا تعتمد الأثر وحدها.', 'Send the link to the person you helped or a witness. They can sign in or create a new account to verify. Verification does not approve the record by itself.', 'Envoyez le lien à la personne aidée ou à un témoin.')}</p>
+        </div>
+      ))}
     </div>
   );
 }
@@ -1176,6 +1237,7 @@ function Admin() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
   const [actionMessage, setActionMessage] = useState('');
+  const [latestVerificationLink, setLatestVerificationLink] = useState('');
   const [loading, setLoading] = useState(true);
   const { lang } = useLanguage();
 
@@ -1244,10 +1306,12 @@ function Admin() {
 
   const makeVerificationLink = async (record: ImpactRecord) => {
     setActionMessage('');
+    setLatestVerificationLink('');
     const result = await createVerificationLink(record, firebaseUser!.uid, firebaseUser?.email || undefined);
     const link = `${window.location.origin}?verify=${result.id}&token=${result.token}`;
     await navigator.clipboard?.writeText(link).catch(() => null);
-    setActionMessage(copy(lang, 'تم إنشاء رابط التزكية ونسخه. التأكيد لا يعتمد السجل وحده.', 'Verification link created and copied. Verification does not approve the record by itself.', 'Lien de vérification créé et copié.'));
+    setLatestVerificationLink(link);
+    setActionMessage(copy(lang, 'تم إنشاء رابط التزكية ونسخه. الرابط يستخدم مرة واحدة وينتهي بعد 7 أيام.', 'Verification link created and copied. The link is one-time and expires in 7 days.', 'Lien de vérification créé et copié. Il expire après 7 jours.'));
   };
 
   const updateRole = async (uid: string, role: UserRole) => {
@@ -1290,6 +1354,8 @@ function Admin() {
   const visibleRecords = normalizedRecords.filter((record) => recordFilter === 'all' || record.status === recordFilter);
   const pendingCount = normalizedRecords.filter((record) => record.status === 'pending').length;
   const flaggedVerificationCount = verifications.filter((item) => item.status === 'flagged' || item.status === 'rejected' || item.riskFlags?.length).length;
+  const confirmedVerificationCount = verifications.filter((item) => item.status === 'confirmed').length;
+  const pendingVerificationCount = verifications.filter((item) => item.status === 'pending').length;
   const duplicateEmails = new Set(users.map((user) => user.email).filter((email, index, arr) => email && arr.indexOf(email) !== index));
 
   const statusLabel = (status: ImpactRecord['status']) => status === 'approved'
@@ -1310,6 +1376,13 @@ function Admin() {
       </div>
 
       {actionMessage && <div className="mb-5 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-sm font-bold text-emerald-200">{actionMessage}</div>}
+      {latestVerificationLink && (
+        <div className="mb-5 rounded-2xl border border-sky-400/20 bg-sky-500/10 p-4 text-sm text-sky-100">
+          <div className="mb-2 font-bold">{copy(lang, 'آخر رابط تزكية', 'Latest verification link', 'Dernier lien de vérification')}</div>
+          <div className="break-all rounded-xl border border-white/10 bg-slate-950/60 p-3 text-xs text-slate-200">{latestVerificationLink}</div>
+          <button className="btn-soft mt-3 !py-2" onClick={() => navigator.clipboard?.writeText(latestVerificationLink)}>{copy(lang, 'نسخ الرابط', 'Copy link', 'Copier le lien')}</button>
+        </div>
+      )}
 
       {loading ? <div className="card p-6 text-slate-300">Loading admin data...</div> : (
         <>
@@ -1320,6 +1393,8 @@ function Admin() {
               <Metric title={lang === 'ar' ? 'اعتمد اليوم' : 'Approved Today'} value={String(approvedToday)} />
               <Metric title={lang === 'ar' ? 'مرفوض' : 'Rejected'} value={String(rejected)} />
               <Metric title={lang === 'ar' ? 'المستخدمون' : 'Users'} value={String(users.length)} />
+              <Metric title={copy(lang, 'تزكيات مؤكدة', 'Confirmed Verifications', 'Vérifications confirmées')} value={String(confirmedVerificationCount)} />
+              <Metric title={copy(lang, 'تزكيات معلقة', 'Pending Verifications', 'Vérifications en attente')} value={String(pendingVerificationCount)} />
               <Metric title={copy(lang, 'تزكيات مشبوهة', 'Flagged Verifications', 'Vérifications signalées')} value={String(flaggedVerificationCount)} />
             </div>
           )}
@@ -1372,7 +1447,6 @@ function Admin() {
                         <option value="approved">approved</option>
                         <option value="rejected">rejected</option>
                       </select>
-                      <button className="btn-soft !py-2" onClick={() => makeVerificationLink(record)}>{copy(lang, 'رابط تزكية', 'Verify link', 'Lien vérif.')}</button>
                       <button className="btn-soft !py-2" onClick={() => review(record, 'rejected')}>{copy(lang, 'رفض', 'Reject', 'Rejeter')}</button>
                       <button className="btn-primary !py-2" onClick={() => review(record, 'approved')}>{copy(lang, 'اعتماد', 'Approve', 'Approuver')}</button>
                       {appUser?.role === 'super_admin' && <button className="btn-soft !py-2 text-red-200" onClick={() => removeImpactRecord(record)}><Trash2 size={16} />{copy(lang, 'حذف', 'Delete', 'Supprimer')}</button>}
@@ -1420,9 +1494,14 @@ function Admin() {
             <div className="grid gap-3">
               <div className="card p-5">
                 <h3 className="mb-3 font-bold">{copy(lang, 'سجل التزكيات', 'Verification activity', 'Activité de vérification')}</h3>
-                {verifications.length === 0 ? <p className="text-sm text-slate-400">{copy(lang, 'لا توجد تزكيات بعد.', 'No verification links yet.', 'Aucune vérification.')}</p> : verifications.slice(0, 8).map((item) => (
+                {verifications.length === 0 ? <p className="text-sm text-slate-400">{copy(lang, 'لا توجد تزكيات بعد.', 'No verification links yet.', 'Aucune vérification.')}</p> : verifications.slice(0, 12).map((item) => (
                   <div key={item.id} className="border-t border-white/10 py-3 text-sm text-slate-300">
-                    {item.status} · weight {Number(item.weight || 0).toFixed(2)} · penalty {Number(item.penalty || 0).toFixed(2)} · {item.riskFlags?.join(', ') || 'no flags'}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-bold text-white">{item.status}</span>
+                      <span className="text-xs text-slate-500">{new Date(item.confirmedAt || item.createdAt).toLocaleString()}</span>
+                    </div>
+                    <div className="mt-1 text-xs text-slate-400">impact: {item.impactId} · owner: {item.impactOwnerId} · verifier: {item.verifierEmail || item.verifierId || '—'}</div>
+                    <div className="mt-1 text-xs text-slate-400">weight {Number(item.weight || 0).toFixed(2)} · penalty {Number(item.penalty || 0).toFixed(2)} · flags: {item.riskFlags?.join(', ') || 'none'}</div>
                   </div>
                 ))}
               </div>
@@ -1475,15 +1554,15 @@ function VerifyImpact() {
   const confirm = async () => {
     if (!firebaseUser || !appUser) {
       setStatus('error');
-      setMessage(copy(lang, 'سجل الدخول أولاً لتأكيد الأثر. لا يمكن لصاحب الأثر تأكيد فعله بنفسه.', 'Please log in first to verify this impact. The owner cannot verify their own action.', 'Veuillez vous connecter pour confirmer cette action.'));
+      setMessage(copy(lang, 'سجّل الدخول أولاً لتأكيد الأثر. لا يمكن لصاحب الأثر تأكيد فعله بنفسه.', 'Please sign in first to verify this impact. The owner cannot verify their own action.', 'Veuillez vous connecter pour confirmer cette action.'));
       return;
     }
     setStatus('working');
     try {
-      const result = await confirmVerificationLink(verificationId, token, { uid: firebaseUser.uid, email: firebaseUser.email || undefined, createdAt: appUser.createdAt });
+      const result = await confirmVerificationLink(verificationId, token, { uid: firebaseUser.uid, email: firebaseUser.email || undefined, createdAt: appUser.createdAt, trustScore: appUser.trustScore, approvedActions: appUser.approvedActions });
       setStatus(result.status === 'rejected' ? 'error' : 'done');
       setMessage(result.status === 'rejected'
-        ? copy(lang, 'تم رفض التزكية لأنها مخالفة لقواعد الثقة، مثل محاولة تأكيد الشخص لنفسه.', 'Verification rejected by trust rules, such as self-verification.', 'Vérification rejetée par les règles de confiance.')
+        ? copy(lang, 'تم رفض التزكية: لا يمكن لصاحب الأثر تأكيد فعله بنفسه أو استخدام رابط مخالف لقواعد الثقة.', 'Verification rejected: the owner cannot verify their own action or use a link that violates trust rules.', 'Vérification rejetée : le propriétaire ne peut pas confirmer sa propre action.')
         : result.riskFlags.length
           ? copy(lang, 'تم تسجيل التزكية مع علامة مراجعة لأنها تبدو متكررة أو مشبوهة.', 'Verification recorded with a review flag because it may be repeated or suspicious.', 'Vérification enregistrée avec signalement.')
           : copy(lang, 'تم تأكيد الأثر. التزكية تساعد الثقة لكنها لا تعتمد السجل وحدها.', 'Impact verified. Verification helps trust but does not approve the record by itself.', 'Action confirmée.'));
@@ -1497,7 +1576,13 @@ function VerifyImpact() {
     <Section>
       <div className="card mx-auto grid max-w-2xl gap-5 p-8 text-center">
         <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-emerald-400/10 text-emerald-200"><HeartHandshake size={30} /></div>
-        <Title title={copy(lang, 'تأكيد أثر مجتمعي', 'Verify Community Impact', 'Confirmer une action')} text={copy(lang, 'التزكية تضيف إشارة ثقة صغيرة ولا تعتمد السجل وحدها.', 'Verification adds a small trust signal and never approves a record by itself.', 'La vérification ajoute un faible signal de confiance.')} />
+        <Title title={copy(lang, 'تأكيد أثر مجتمعي', 'Verify Community Impact', 'Confirmer une action')} text={copy(lang, 'التزكية يرسلها صاحب الأثر لمن ساعده أو لشاهد، وتضيف إشارة ثقة صغيرة دون اعتماد السجل وحدها.', 'The impact owner sends verification to the helped person or a witness. It adds a small trust signal and never approves a record by itself.', 'La vérification ajoute un faible signal de confiance.')} />
+        <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/[.03] p-4 text-start text-sm text-slate-300">
+          <div className="font-bold text-white">{copy(lang, 'قواعد التزكية', 'Verification rules', 'Règles de vérification')}</div>
+          <div>✓ {copy(lang, 'الرابط يستخدم مرة واحدة فقط.', 'The link can be used once only.', 'Le lien ne peut être utilisé qu’une seule fois.')}</div>
+          <div>✓ {copy(lang, 'يمكن للمؤكد أن يكون مستخدمًا سابقًا أو ينشئ حسابًا جديدًا للتأكيد.', 'The verifier can be an existing user or create a new account to verify.', 'Le vérificateur peut être un utilisateur existant ou créer un compte.')}</div>
+          <div>✕ {copy(lang, 'لا يمكن لصاحب الأثر تأكيد فعله بنفسه.', 'The impact owner cannot verify their own action.', 'Le propriétaire ne peut pas confirmer sa propre action.')}</div>
+        </div>
         {!verificationId || !token ? <p className="text-red-200">{copy(lang, 'الرابط غير مكتمل.', 'Incomplete verification link.', 'Lien incomplet.')}</p> : null}
         {message && <p className={`rounded-2xl border p-3 text-sm ${status === 'done' ? 'border-emerald-400/20 bg-emerald-500/10 text-emerald-100' : 'border-amber-400/20 bg-amber-500/10 text-amber-100'}`}>{message}</p>}
         <button className="btn-primary justify-center" disabled={status === 'working' || !verificationId || !token} onClick={confirm}>

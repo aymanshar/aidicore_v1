@@ -19,6 +19,7 @@ import { createAuditLog } from './auditService';
 const DEMO_VERIFICATIONS_KEY = 'aidicore_demo_impact_verifications';
 const NORMAL_WEIGHT = 0.05;
 const NEW_ACCOUNT_WEIGHT = 0.01;
+const TRUSTED_VERIFIER_WEIGHT = 0.08;
 const REPEATED_PAIR_PENALTY = -0.05;
 const HIGH_FREQUENCY_PENALTY = -0.1;
 
@@ -52,6 +53,8 @@ function analyzeVerificationRisk(args: {
   impactOwnerId: string;
   verifierId: string;
   verifierCreatedAt?: number;
+  verifierTrustScore?: number;
+  verifierApprovedActions?: number;
   existing: ImpactVerification[];
 }) {
   const now = Date.now();
@@ -75,6 +78,9 @@ function analyzeVerificationRisk(args: {
   if (args.verifierCreatedAt && now - args.verifierCreatedAt < 7 * 24 * 60 * 60 * 1000) {
     flags.push('new_account_verifier');
     weight = NEW_ACCOUNT_WEIGHT;
+  } else if ((args.verifierTrustScore || 0) >= 0.3 || (args.verifierApprovedActions || 0) >= 3) {
+    flags.push('trusted_verifier');
+    weight = TRUSTED_VERIFIER_WEIGHT;
   }
 
   if (flags.includes('repeated_pair_pattern')) {
@@ -121,7 +127,7 @@ export async function createVerificationLink(impact: ImpactRecord, createdBy: st
   return { id, token, expiresAt };
 }
 
-export async function confirmVerificationLink(verificationId: string, token: string, verifier: { uid: string; email?: string; createdAt?: number }) {
+export async function confirmVerificationLink(verificationId: string, token: string, verifier: { uid: string; email?: string; createdAt?: number; trustScore?: number; approvedActions?: number }) {
   const tokenHash = await hashToken(token);
   const now = Date.now();
 
@@ -129,7 +135,7 @@ export async function confirmVerificationLink(verificationId: string, token: str
     const items = readDemoVerifications();
     const item = items.find((entry) => entry.id === verificationId);
     if (!item || item.tokenHash !== tokenHash || item.status !== 'pending' || item.expiresAt < now) throw new Error('Invalid or expired verification link.');
-    const risk = analyzeVerificationRisk({ impactOwnerId: item.impactOwnerId, verifierId: verifier.uid, verifierCreatedAt: verifier.createdAt, existing: items });
+    const risk = analyzeVerificationRisk({ impactOwnerId: item.impactOwnerId, verifierId: verifier.uid, verifierCreatedAt: verifier.createdAt, verifierTrustScore: verifier.trustScore, verifierApprovedActions: verifier.approvedActions, existing: items });
     Object.assign(item, { status: risk.status, verifierId: verifier.uid, verifierEmail: verifier.email, weight: risk.weight, penalty: risk.penalty, riskFlags: risk.flags, confirmedAt: now });
     writeDemoVerifications(items);
     await createAuditLog({ actorId: verifier.uid, actorEmail: verifier.email, action: risk.status === 'rejected' ? 'reject_impact_verification' : 'confirm_impact_verification', targetType: 'impact_record', targetId: item.impactId, message: `Verification ${risk.status}. Flags: ${risk.flags.join(', ') || 'none'}` });
@@ -144,7 +150,7 @@ export async function confirmVerificationLink(verificationId: string, token: str
 
   const existingSnap = await getDocs(query(collection(db, 'impact_verifications'), where('impactOwnerId', '==', item.impactOwnerId), where('verifierId', '==', verifier.uid), orderBy('confirmedAt', 'desc'), limit(20))).catch(() => null);
   const existing = existingSnap ? existingSnap.docs.map((entry) => ({ id: entry.id, ...entry.data() })) as ImpactVerification[] : [];
-  const risk = analyzeVerificationRisk({ impactOwnerId: item.impactOwnerId, verifierId: verifier.uid, verifierCreatedAt: verifier.createdAt, existing });
+  const risk = analyzeVerificationRisk({ impactOwnerId: item.impactOwnerId, verifierId: verifier.uid, verifierCreatedAt: verifier.createdAt, verifierTrustScore: verifier.trustScore, verifierApprovedActions: verifier.approvedActions, existing });
 
   await updateDoc(ref, { status: risk.status, verifierId: verifier.uid, verifierEmail: verifier.email || '', weight: risk.weight, penalty: risk.penalty, riskFlags: risk.flags, confirmedAt: now });
   await updateDoc(doc(db, 'impact_records', item.impactId), {

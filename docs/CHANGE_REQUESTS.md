@@ -331,3 +331,13 @@ Approved.
 
 ### Status
 Implemented in V1.6.0.
+
+
+## V1.7.1 - Trust Verification Polish
+
+- Polished verification link experience with clearer one-time-use and admin-review messaging.
+- Added visible latest verification link panel in Admin after link generation.
+- Added confirmed, pending, and flagged verification metrics in Admin overview.
+- Improved verification activity log details: status, time, owner, verifier, weight, penalty, and risk flags.
+- Updated Firestore rules so self-verification attempts are stored as rejected/flagged audit events instead of failing with a generic permissions error.
+- Updated footer/app version to v1.7.1.
