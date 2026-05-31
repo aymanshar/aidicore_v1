@@ -222,9 +222,10 @@ function TrustPill({ icon, label }: { icon: ReactNode; label: string }) {
 }
 
 function Metric({ title, value }: { title: string; value: string }) {
+  const longValue = value.length > 8;
   return (
     <div className="card p-5">
-      <div className="text-3xl font-extrabold text-white">{value}</div>
+      <div className={`${longValue ? 'text-xl leading-tight' : 'text-3xl'} font-extrabold text-white`}>{value}</div>
       <div className="mt-1 text-sm text-slate-400">{title}</div>
     </div>
   );
@@ -713,7 +714,14 @@ function Profile({ setPage }: { setPage: (p: Page) => void }) {
       setMessage(copy(lang, 'تم حفظ جواز الأثر بأمان.', 'Impact Passport saved safely.', 'Passeport d’impact enregistré en toute sécurité.'));
     } catch (error) {
       setMessageTone('error');
-      setMessage(error instanceof Error ? error.message : copy(lang, 'تعذر حفظ جواز الأثر.', 'Could not save Impact Passport.', 'Impossible d’enregistrer le passeport.'));
+      const rawMessage = error instanceof Error ? error.message : '';
+      const deployRulesMessage = copy(
+        lang,
+        'يجب نشر قواعد Firestore الجديدة أولاً: firebase deploy --only firestore:rules',
+        'Deploy the new Firestore rules first: firebase deploy --only firestore:rules',
+        'Déployez d’abord les nouvelles règles Firestore : firebase deploy --only firestore:rules'
+      );
+      setMessage(rawMessage.includes('firebase deploy --only firestore:rules') ? deployRulesMessage : rawMessage || copy(lang, 'تعذر حفظ جواز الأثر.', 'Could not save Impact Passport.', 'Impossible d’enregistrer le passeport.'));
     } finally {
       setSaving(false);
     }
@@ -774,7 +782,7 @@ function Profile({ setPage }: { setPage: (p: Page) => void }) {
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               <Metric title={copy(lang, 'مستوى الثقة', 'Trust Level', 'Niveau de confiance')} value={`${appUser?.trustScore ?? 0}`} />
               <Metric title={copy(lang, 'مساهمات معتمدة', 'Approved Contributions', 'Contributions approuvées')} value={String(appUser?.approvedActions ?? 0)} />
-              <Metric title={copy(lang, 'الحالة', 'Status', 'Statut')} value={impactPassportEnabled ? copy(lang, 'جاهز للمساهمة', 'Ready to contribute', 'Prêt à contribuer') : copy(lang, 'خاص', 'Private', 'Privé')} />
+              <Metric title={impactPassportEnabled ? copy(lang, 'جاهز للمساهمة', 'Ready to contribute', 'Prêt à contribuer') : copy(lang, 'وضع خاص', 'Private mode', 'Mode privé')} value={impactPassportEnabled ? copy(lang, 'نشط', 'Active', 'Actif') : copy(lang, 'خاص', 'Private', 'Privé')} />
             </div>
 
             <div className="mt-5 grid gap-3 rounded-[1.5rem] border border-white/10 bg-black/15 p-5">

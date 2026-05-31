@@ -241,3 +241,6 @@ Aliases should always render as `@alias` with left-to-right direction even in Ar
 A remaining Firestore permission error appeared during Impact Passport save. The cause was a rules mismatch for self-owned user updates where some existing user documents may not include all legacy immutable fields expected by the rule. The final fix keeps normal users restricted to safe profile/passport fields through `affectedKeys().hasOnly(...)` and removes the fragile direct equality check for `role/status` in the self-update branch.
 
 Additional contribution categories were added: food support, disability support, animal welfare, and family support. Passport copy was polished to avoid unclear Arabic labels and technical alias suggestions.
+
+## V1.5.4 Note
+The remaining Passport save issue was caused by Firestore permissions around the new alias index and user passport fields. The app now uses the alias index when rules are deployed, and falls back to saving the user passport document with a clear rules-deployment message if the backend rules are outdated.

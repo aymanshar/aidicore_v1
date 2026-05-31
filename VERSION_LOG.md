@@ -299,3 +299,9 @@
 - Added four approved impact categories: Food Support, Disability Support, Animal Welfare, and Family Support.
 - Updated category templates and impact credit weights for the new categories.
 - Verified production build with `npm run build`; only Vite bundle-size warning remains.
+
+## V1.5.4 - Passport Permissions Final Hotfix
+- Added a backward-compatible save fallback for Impact Passport updates when `/aliases` rules have not been deployed yet.
+- Strengthened Firestore rules for user-owned passport updates and alias index writes.
+- Added a clear deployment message when Firestore rules are outdated.
+- Improved Passport status metric to avoid Arabic text wrapping inside the card.

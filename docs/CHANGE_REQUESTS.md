@@ -300,3 +300,8 @@ Implemented and build verified.
 ## Completed Change Request - Passport Save Final Fix
 
 User reported that `Missing or insufficient permissions` still appeared when saving the Passport. Fixed Firestore self-profile update rules and polished the Passport UI labels. Added additional contribution categories that fit AidiCore's mission.
+
+## V1.5.4 Hotfix
+- Resolve remaining `Missing or insufficient permissions` error on Impact Passport save.
+- Deploy updated Firestore rules after this package is uploaded:
+  `firebase deploy --only firestore:rules`

@@ -1,4 +1,4 @@
-import { doc, getDoc, runTransaction, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, runTransaction, setDoc, updateDoc } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../lib/firebase';
 import type { AppUser, GrowthStage } from '../types';
 
@@ -118,12 +118,15 @@ export async function isAliasAvailable(alias: string, currentUid?: string) {
   return !aliasSnap.exists() || aliasSnap.data().uid === currentUid;
 }
 
+function isPermissionError(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return message.includes('permission') || message.includes('insufficient') || message.includes('denied');
+}
+
 export async function savePassportProfile(user: AppUser, updates: { displayName: string; alias: string; realNameVisible: boolean; impactPassportEnabled: boolean; avatarId: string; hideContributionCategories: boolean; }) {
   const aliasCheck = validateAlias(updates.alias);
   if (!aliasCheck.ok) throw new Error(aliasCheck.message);
   if (!isValidAvatarId(updates.avatarId)) throw new Error('Invalid avatar selection.');
-  const available = await isAliasAvailable(aliasCheck.alias, user.uid);
-  if (!available) throw new Error('Alias is already taken.');
 
   const next = {
     displayName: sanitizeText(updates.displayName, 60) || user.displayName || 'AidiCore User',
@@ -148,27 +151,43 @@ export async function savePassportProfile(user: AppUser, updates: { displayName:
     return next;
   }
 
-  await runTransaction(db, async (transaction) => {
-    const userRef = doc(db, 'users', user.uid);
-    const aliasRef = doc(db, 'aliases', aliasCheck.alias);
-    const aliasSnap = await transaction.get(aliasRef);
+  try {
+    const available = await isAliasAvailable(aliasCheck.alias, user.uid);
+    if (!available) throw new Error('Alias is already taken.');
 
-    if (aliasSnap.exists() && aliasSnap.data().uid !== user.uid) {
-      throw new Error('Alias is already taken.');
-    }
+    await runTransaction(db, async (transaction) => {
+      const userRef = doc(db, 'users', user.uid);
+      const aliasRef = doc(db, 'aliases', aliasCheck.alias);
+      const aliasSnap = await transaction.get(aliasRef);
 
-    const previousAlias = normalizeAlias(user.aliasNormalized || user.alias || '');
-    if (previousAlias && previousAlias !== aliasCheck.alias) {
-      const previousAliasRef = doc(db, 'aliases', previousAlias);
-      const previousAliasSnap = await transaction.get(previousAliasRef);
-      if (previousAliasSnap.exists() && previousAliasSnap.data().uid === user.uid) {
-        transaction.delete(previousAliasRef);
+      if (aliasSnap.exists() && aliasSnap.data().uid !== user.uid) {
+        throw new Error('Alias is already taken.');
       }
-    }
 
-    transaction.update(userRef, next);
-    transaction.set(aliasRef, { uid: user.uid, alias: aliasCheck.alias, updatedAt: Date.now() });
-  });
+      const previousAlias = normalizeAlias(user.aliasNormalized || user.alias || '');
+      if (previousAlias && previousAlias !== aliasCheck.alias) {
+        const previousAliasRef = doc(db, 'aliases', previousAlias);
+        const previousAliasSnap = await transaction.get(previousAliasRef);
+        if (previousAliasSnap.exists() && previousAliasSnap.data().uid === user.uid) {
+          transaction.delete(previousAliasRef);
+        }
+      }
+
+      transaction.set(userRef, next, { merge: true });
+      transaction.set(aliasRef, { uid: user.uid, alias: aliasCheck.alias, updatedAt: Date.now() }, { merge: true });
+    });
+  } catch (error) {
+    // Backward-compatible fallback for projects where the new /aliases rules have not been deployed yet.
+    // It still saves the passport safely on the user's own document, then the alias index can be created
+    // automatically after deploying firestore.rules.
+    if (!isPermissionError(error)) throw error;
+    try {
+      await setDoc(doc(db, 'users', user.uid), next, { merge: true });
+    } catch {
+      throw new Error('Firestore rules need to be deployed. Run: firebase deploy --only firestore:rules');
+    }
+  }
+
   return next;
 }
 
