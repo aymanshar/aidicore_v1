@@ -199,3 +199,8 @@ Important rule: keep sensitive-data prevention close to the form and later add s
 - The active language should be visually highlighted instead of cycling through one hidden next language.
 - Navbar labels should be short and product-like to avoid layout breaks, especially in French.
 - Long product terms such as “Impact Dashboard” and “Enregistrer un impact” can be shortened in navigation while fuller wording can remain inside page content.
+
+
+## Decision - Impact Passport Foundation
+
+The profile page is no longer treated as a technical account form. It is now the beginning of the Impact Passport concept. Users should not edit technical avatar URLs, roles, statuses, or emails. They may control safe public-facing identity fields such as display name, symbolic alias, and future sharing preferences. Impact Passport remains private by default until explicit private share links are implemented.

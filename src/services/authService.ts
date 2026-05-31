@@ -39,6 +39,8 @@ function makeDemoUser(email: string, displayName?: string): AppUser {
     trustScore: 0,
     approvedActions: 0,
     alias: 'New Seed',
+    realNameVisible: false,
+    impactPassportEnabled: false,
     growthStage: 'seed',
     createdAt: Date.now(),
     lastLogin: Date.now(),
@@ -86,6 +88,8 @@ function buildUserDoc(user: User, role: UserRole = 'user'): AppUser {
     trustScore: 0,
     approvedActions: 0,
     alias: 'New Seed',
+    realNameVisible: false,
+    impactPassportEnabled: false,
     growthStage: 'seed',
     createdAt: Date.now(),
     lastLogin: Date.now(),
@@ -208,16 +212,21 @@ export async function getAppUser(uid: string): Promise<AppUser | null> {
   return snap.exists() ? (snap.data() as AppUser) : null;
 }
 
-export async function updateCurrentUserProfile(user: User, updates: { displayName: string; avatarUrl?: string }) {
+export async function updateCurrentUserProfile(user: User, updates: { displayName: string; alias?: string; realNameVisible?: boolean; impactPassportEnabled?: boolean }) {
   if (!isFirebaseConfigured) {
     const current = readDemoUser();
     if (!current) return;
-    const next = { ...current, displayName: updates.displayName, avatarUrl: updates.avatarUrl };
+    const next = { ...current, displayName: updates.displayName, alias: updates.alias || current.alias || 'New Seed', realNameVisible: !!updates.realNameVisible, impactPassportEnabled: !!updates.impactPassportEnabled };
     writeDemoUser(next);
     await createAuditLog({ actorId: next.uid, actorEmail: next.email, action: 'update_profile', targetType: 'user', targetId: next.uid, message: 'Updated demo profile' });
     return;
   }
-  await updateProfile(user, { displayName: updates.displayName, photoURL: updates.avatarUrl || null });
-  await updateDoc(doc(db, 'users', user.uid), { displayName: updates.displayName, avatarUrl: updates.avatarUrl || null });
+  await updateProfile(user, { displayName: updates.displayName });
+  await updateDoc(doc(db, 'users', user.uid), {
+    displayName: updates.displayName,
+    alias: updates.alias || 'New Seed',
+    realNameVisible: !!updates.realNameVisible,
+    impactPassportEnabled: !!updates.impactPassportEnabled,
+  });
   await createAuditLog({ actorId: user.uid, actorEmail: user.email || undefined, action: 'update_profile', targetType: 'user', targetId: user.uid, message: 'Updated profile' }).catch(() => null);
 }

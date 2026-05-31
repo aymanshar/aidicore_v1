@@ -614,44 +614,126 @@ function Profile({ setPage }: { setPage: (p: Page) => void }) {
   const { firebaseUser, appUser, refreshUser } = useAuth();
   const { lang } = useLanguage();
   const [displayName, setDisplayName] = useState(appUser?.displayName || firebaseUser?.displayName || '');
-  const [avatarUrl, setAvatarUrl] = useState(appUser?.avatarUrl || firebaseUser?.photoURL || '');
+  const [alias, setAlias] = useState(appUser?.alias || 'New Seed');
+  const [realNameVisible, setRealNameVisible] = useState(Boolean(appUser?.realNameVisible));
+  const [impactPassportEnabled, setImpactPassportEnabled] = useState(Boolean(appUser?.impactPassportEnabled));
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setDisplayName(appUser?.displayName || firebaseUser?.displayName || '');
-    setAvatarUrl(appUser?.avatarUrl || firebaseUser?.photoURL || '');
+    setAlias(appUser?.alias || 'New Seed');
+    setRealNameVisible(Boolean(appUser?.realNameVisible));
+    setImpactPassportEnabled(Boolean(appUser?.impactPassportEnabled));
   }, [appUser, firebaseUser]);
 
   if (!firebaseUser) return <RequireLogin setPage={setPage} />;
 
+  const stage = appUser?.growthStage || 'seed';
+  const stageMap: Record<string, { icon: string; ar: string; en: string; fr: string }> = {
+    seed: { icon: '🌱', ar: 'بذرة', en: 'Seed', fr: 'Graine' },
+    sprout: { icon: '🌿', ar: 'برعم', en: 'Sprout', fr: 'Pousse' },
+    plant: { icon: '🪴', ar: 'نبتة', en: 'Plant', fr: 'Plante' },
+    tree: { icon: '🌳', ar: 'شجرة', en: 'Tree', fr: 'Arbre' },
+    forest: { icon: '🌲', ar: 'غابة', en: 'Forest', fr: 'Forêt' },
+    oasis: { icon: '🏞️', ar: 'واحة', en: 'Oasis', fr: 'Oasis' },
+  };
+  const stageInfo = stageMap[stage] || stageMap.seed;
+  const stageLabel = copy(lang, stageInfo.ar, stageInfo.en, stageInfo.fr);
+
+  const cleanAlias = (value: string) => value.replace(/[^\p{L}\p{N}\s_-]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 32);
+
   const save = async (event: FormEvent) => {
     event.preventDefault();
+    const safeAlias = cleanAlias(alias) || 'New Seed';
+    if (safeAlias.length < 3) {
+      setMessage(copy(lang, 'اكتب اسمًا رمزيًا من 3 أحرف على الأقل.', 'Use an alias of at least 3 characters.', 'Utilisez un alias d’au moins 3 caractères.'));
+      return;
+    }
     setSaving(true);
     setMessage('');
-    await updateCurrentUserProfile(firebaseUser, { displayName, avatarUrl });
+    await updateCurrentUserProfile(firebaseUser, {
+      displayName: displayName.trim() || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'AidiCore User',
+      alias: safeAlias,
+      realNameVisible,
+      impactPassportEnabled,
+    });
     await refreshUser();
     setSaving(false);
-    setMessage(lang === 'ar' ? 'تم حفظ الملف الشخصي.' : 'Profile saved.');
+    setMessage(copy(lang, 'تم حفظ جواز الأثر.', 'Impact Passport saved.', 'Passeport d’impact enregistré.'));
   };
 
   return (
-    <Section className="max-w-3xl">
-      <Title title={lang === 'ar' ? 'الملف الشخصي' : 'Profile'} text={lang === 'ar' ? 'إدارة بيانات عامة فقط بدون كشف معلومات حساسة.' : 'Manage safe public profile details only.'} />
-      <form onSubmit={save} className="card grid gap-4 p-6">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl border border-white/10 bg-white/5 text-2xl font-extrabold text-emerald-200">
-            {avatarUrl ? <img src={avatarUrl} className="h-full w-full object-cover" alt="avatar" /> : (displayName || firebaseUser.email || 'A').slice(0, 1).toUpperCase()}
+    <Section className="max-w-5xl">
+      <Title
+        title={copy(lang, 'جواز الأثر', 'Impact Passport', 'Passeport d’impact')}
+        text={copy(
+          lang,
+          'هوية أثر آمنة تعرض إنجازاتك بصورة رمزية دون كشف بيانات حساسة. روابط المشاركة الخاصة ستضاف في المرحلة القادمة.',
+          'A safe impact identity that presents your achievements symbolically without exposing sensitive information. Private share links will come next.',
+          'Une identité d’impact sécurisée qui présente vos contributions de façon symbolique sans exposer de données sensibles. Les liens privés arriveront ensuite.'
+        )}
+      />
+      <form onSubmit={save} className="card grid gap-6 p-6 md:p-8">
+        <div className="grid gap-6 lg:grid-cols-[.9fr_1.1fr]">
+          <div className="rounded-[2rem] border border-emerald-300/20 bg-emerald-400/10 p-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-24 w-24 items-center justify-center rounded-[2rem] border border-white/10 bg-white/10 text-5xl">
+                {stageInfo.icon}
+              </div>
+              <div>
+                <p className="text-sm font-bold uppercase tracking-[.18em] text-emerald-200">{copy(lang, 'المرحلة', 'Stage', 'Niveau')}</p>
+                <h3 className="mt-1 text-3xl font-extrabold text-white">{stageLabel}</h3>
+                <p className="mt-1 text-sm text-slate-300">{copy(lang, 'تتطور المرحلة مع الاستمرارية وجودة الأثر.', 'Stage grows with consistency and quality.', 'Le niveau évolue avec la régularité et la qualité.')}</p>
+              </div>
+            </div>
+            <div className="mt-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+              <Metric title={copy(lang, 'مؤشر الأثر', 'Impact Index', 'Indice d’impact')} value={String(appUser?.impactCredits ?? appUser?.impactScore ?? 0)} />
+              <Metric title={copy(lang, 'الثقة', 'Trust', 'Confiance')} value={`${appUser?.trustScore ?? 0}`} />
+              <Metric title={copy(lang, 'آثار معتمدة', 'Approved', 'Approuvés')} value={String(appUser?.approvedActions ?? 0)} />
+            </div>
           </div>
-          <div>
-            <div className="font-bold text-white">{firebaseUser.email}</div>
-            <div className="text-sm text-slate-400">{lang === 'ar' ? 'الدور' : 'Role'}: {appUser?.role || 'user'} · {lang === 'ar' ? 'الحالة' : 'Status'}: {appUser?.status || 'active'}</div>
+
+          <div className="grid gap-4">
+            <div className="rounded-3xl border border-white/10 bg-white/[.04] p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold text-slate-400">{copy(lang, 'الحساب', 'Account', 'Compte')}</p>
+                  <p className="mt-1 font-bold text-white">{firebaseUser.email}</p>
+                </div>
+                <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200">
+                  {appUser?.status || 'active'}
+                </span>
+              </div>
+            </div>
+
+            <label className="grid gap-2">
+              <span className="text-sm font-bold text-slate-200">{copy(lang, 'الاسم الظاهر داخل حسابك', 'Display name inside your account', 'Nom affiché dans votre compte')}</span>
+              <input className="input" value={displayName} onChange={(event) => setDisplayName(event.target.value)} required />
+              <span className="text-xs text-slate-500">{copy(lang, 'لن يظهر للعامة إلا إذا اخترت ذلك لاحقًا.', 'It will not be public unless you choose so later.', 'Il ne sera pas public sauf si vous le choisissez plus tard.')}</span>
+            </label>
+
+            <label className="grid gap-2">
+              <span className="text-sm font-bold text-slate-200">{copy(lang, 'الاسم الرمزي الفريد', 'Unique impact alias', 'Alias d’impact unique')}</span>
+              <input className="input" value={alias} onChange={(event) => setAlias(event.target.value)} placeholder="Green Oasis" required />
+              <span className="text-xs text-slate-500">{copy(lang, 'استخدم اسمًا شكليًا بدل الاسم الحقيقي في جواز الأثر.', 'Use a symbolic name instead of your real name in the Impact Passport.', 'Utilisez un nom symbolique au lieu du vrai nom dans le passeport d’impact.')}</span>
+            </label>
+
+            <div className="grid gap-3 rounded-3xl border border-white/10 bg-white/[.04] p-5">
+              <label className="flex items-start gap-3 text-sm text-slate-300">
+                <input type="checkbox" checked={realNameVisible} onChange={(event) => setRealNameVisible(event.target.checked)} className="mt-1" />
+                <span>{copy(lang, 'السماح بإظهار الاسم الحقيقي عند مشاركة جواز الأثر لاحقًا.', 'Allow showing my real name when I share my Impact Passport later.', 'Autoriser l’affichage de mon vrai nom lorsque je partagerai mon passeport d’impact.')}</span>
+              </label>
+              <label className="flex items-start gap-3 text-sm text-slate-300">
+                <input type="checkbox" checked={impactPassportEnabled} onChange={(event) => setImpactPassportEnabled(event.target.checked)} className="mt-1" />
+                <span>{copy(lang, 'تجهيز جواز الأثر للمشاركة الخاصة عند إطلاق روابط المشاركة.', 'Prepare my Impact Passport for private sharing when share links launch.', 'Préparer mon passeport d’impact pour le partage privé lorsque les liens seront disponibles.')}</span>
+              </label>
+            </div>
           </div>
         </div>
-        <input className="input" placeholder={lang === 'ar' ? 'الاسم الظاهر' : 'Display name'} value={displayName} onChange={(event) => setDisplayName(event.target.value)} required />
-        <input className="input" placeholder={lang === 'ar' ? 'رابط صورة اختيارية' : 'Optional avatar URL'} value={avatarUrl} onChange={(event) => setAvatarUrl(event.target.value)} />
+
         {message && <p className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-sm text-emerald-200">{message}</p>}
-        <button className="btn-primary justify-center" disabled={saving}>{saving ? (lang === 'ar' ? 'جارٍ الحفظ...' : 'Saving...') : (lang === 'ar' ? 'حفظ' : 'Save')}</button>
+        <button className="btn-primary justify-center" disabled={saving}>{saving ? copy(lang, 'جارٍ الحفظ...', 'Saving...', 'Enregistrement...') : copy(lang, 'حفظ جواز الأثر', 'Save Impact Passport', 'Enregistrer le passeport')}</button>
       </form>
     </Section>
   );

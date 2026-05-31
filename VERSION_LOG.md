@@ -223,3 +223,20 @@
 
 ### Notes
 - This release keeps the three-language foundation while prioritizing a stable product navigation experience.
+
+## V1.5.0 - Impact Passport Foundation
+
+### Added
+- Introduced the first Impact Passport profile experience.
+- Added symbolic alias editing for users.
+- Added growth-stage preview using Seed / Sprout / Plant / Tree / Forest / Oasis.
+- Added privacy choices for future Impact Passport sharing.
+
+### Changed
+- Removed technical avatar URL input from the profile page.
+- Reframed the profile page as a privacy-first Impact Passport rather than a generic user profile.
+- Profile now shows user-facing impact indicators instead of technical fields.
+
+### Notes
+- Share links and one-time view links are planned for the next Impact Passport phase.
+- Alias uniqueness enforcement will be added before public passport sharing is enabled.

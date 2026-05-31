@@ -179,3 +179,8 @@ For Google Login on the custom domain, add these to Firebase Authentication → 
 
 - aidicore.com
 - www.aidicore.com
+
+
+## V1.5.0 Update
+
+This release introduces the first Impact Passport foundation and fixes the profile page so users no longer see or edit raw technical fields such as `avatarUrl`. The profile experience now focuses on safe identity: display name, symbolic alias, growth stage, and future private sharing preferences.

@@ -145,3 +145,12 @@
 - Shortened navbar labels for Arabic, English, and French.
 - Fixed desktop navbar wrapping and oversized buttons.
 - Improved mobile language selection.
+
+
+## V1.5.x - Impact Passport Roadmap
+
+- Finalize unique alias validation.
+- Add private expiring share links.
+- Add one-time-view share links.
+- Add visual avatar themes based on growth stages.
+- Keep Impact Passport private by default.

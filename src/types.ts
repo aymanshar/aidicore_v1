@@ -16,6 +16,8 @@ export interface AppUser {
   trustScore?: number;
   approvedActions: number;
   alias?: string;
+  realNameVisible?: boolean;
+  impactPassportEnabled?: boolean;
   growthStage?: 'seed' | 'sprout' | 'plant' | 'tree' | 'forest' | 'oasis';
   createdAt: number;
   lastLogin: number;

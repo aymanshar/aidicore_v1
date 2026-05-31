@@ -238,3 +238,14 @@ Approved as V1.4.2.
 
 ### Status
 Implemented in V1.4.2.
+
+
+## V1.5.0 - Impact Passport Profile Cleanup
+
+Requested by: Ayman
+
+Decision:
+- Fix the profile page that exposed avatarUrl as a raw technical field.
+- Merge the fix with the next product step: Impact Passport foundation.
+
+Status: Implemented
