@@ -39,6 +39,7 @@ export interface ImpactRecord {
   id: string;
   userId: string;
   userDisplayName: string;
+  userEmail?: string;
   title: string;
   category: ImpactCategory;
   details: string;

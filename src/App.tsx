@@ -26,6 +26,7 @@ import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 import { login, loginWithGoogle, resetPassword, signup, updateCurrentUserProfile } from './services/authService';
 import {
   createImpactRecord,
+  getImpactRecordById,
   listAllImpactRecords,
   listMyImpactRecords,
   listPendingImpactRecords,
@@ -580,7 +581,7 @@ function Dashboard({ setPage }: { setPage: (p: Page) => void }) {
   useEffect(() => {
     if (!firebaseUser) return;
     let mounted = true;
-    listMyImpactRecords(firebaseUser.uid)
+    listMyImpactRecords(firebaseUser.uid, firebaseUser.email || undefined)
       .then((items) => mounted && setRecords(items))
       .catch(() => mounted && setRecords([]))
       .finally(() => mounted && setLoading(false));
@@ -1049,6 +1050,9 @@ function RecordImpact({ setPage }: { setPage: (p: Page) => void }) {
   });
   const [done, setDone] = useState(false);
   const [createdId, setCreatedId] = useState('');
+  const [createdVerificationLink, setCreatedVerificationLink] = useState('');
+  const [creatingVerificationLink, setCreatingVerificationLink] = useState(false);
+  const [verificationError, setVerificationError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [locationNotice, setLocationNotice] = useState('');
@@ -1108,6 +1112,7 @@ function RecordImpact({ setPage }: { setPage: (p: Page) => void }) {
         countryCode: form.countryCode.trim().toUpperCase() || 'AE',
         userId: firebaseUser.uid,
         userDisplayName: getSafeDisplayName(appUser) || firebaseUser.email || 'AidiCore Member',
+        userEmail: firebaseUser.email || undefined,
       });
       setCreatedId(id);
       setDone(true);
@@ -1115,6 +1120,28 @@ function RecordImpact({ setPage }: { setPage: (p: Page) => void }) {
       setError(err instanceof Error ? err.message : lang === 'ar' ? 'تعذر حفظ الأثر.' : 'Could not save impact record.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+
+  const createVerificationForCreatedRecord = async () => {
+    if (!firebaseUser || !createdId) return;
+    setVerificationError('');
+    setCreatingVerificationLink(true);
+    try {
+      const record = await getImpactRecordById(createdId);
+      if (!record || record.userId !== firebaseUser.uid) {
+        setVerificationError(lang === 'ar' ? 'تعذر العثور على سجل الأثر لهذا الحساب.' : 'Could not find this impact record for your account.');
+        return;
+      }
+      const result = await createVerificationLink(record, firebaseUser.uid, firebaseUser.email || undefined);
+      const link = `${window.location.origin}?verify=${result.id}&token=${result.token}`;
+      setCreatedVerificationLink(link);
+      await navigator.clipboard?.writeText(link).catch(() => null);
+    } catch (err) {
+      setVerificationError(err instanceof Error ? err.message : (lang === 'ar' ? 'تعذر إنشاء رابط التزكية.' : 'Could not create verification link.'));
+    } finally {
+      setCreatingVerificationLink(false);
     }
   };
 
@@ -1129,9 +1156,19 @@ function RecordImpact({ setPage }: { setPage: (p: Page) => void }) {
             {lang === 'ar' ? 'سيظهر الأثر في لوحة المستخدم كقيد المراجعة، ولن يظهر للعامة قبل الموافقة.' : 'The record now appears as pending in your dashboard and will not be public before approval.'}
           </p>
           {createdId && <p className="mt-3 text-xs text-slate-500">ID: {createdId}</p>}
+          <div className="mt-5 rounded-2xl border border-emerald-300/15 bg-emerald-400/10 p-4">
+            <div className="font-bold text-emerald-100">{lang === 'ar' ? 'تحتاج شاهد أو الشخص الذي ساعدته؟' : 'Need a witness or the helped person to verify?'}</div>
+            <p className="mt-2 text-sm leading-6 text-slate-300">{lang === 'ar' ? 'أنشئ رابط تزكية وأرسله له. يمكنه تسجيل الدخول أو إنشاء حساب جديد للتأكيد. لا يمكنك تأكيد فعلك بنفسك.' : 'Create a verification link and send it to them. They can sign in or create a new account to verify. You cannot verify your own action.'}</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button className="btn-soft !py-2" disabled={creatingVerificationLink} onClick={createVerificationForCreatedRecord}>{creatingVerificationLink ? (lang === 'ar' ? 'جارٍ إنشاء الرابط...' : 'Creating link...') : (lang === 'ar' ? 'إنشاء ونسخ رابط التزكية' : 'Create and copy verification link')}</button>
+              {createdVerificationLink && <button className="btn-soft !py-2" onClick={() => navigator.clipboard?.writeText(createdVerificationLink)}>{lang === 'ar' ? 'نسخ الرابط مرة أخرى' : 'Copy again'}</button>}
+            </div>
+            {createdVerificationLink && <div dir="ltr" className="mt-3 break-all rounded-2xl border border-white/10 bg-slate-950/60 p-3 text-xs text-slate-200">{createdVerificationLink}</div>}
+            {verificationError && <p className="mt-3 text-sm text-red-200">{verificationError}</p>}
+          </div>
           <div className="mt-6 flex flex-wrap gap-3">
             <button className="btn-primary" onClick={() => setPage('dashboard')}>{lang === 'ar' ? 'العودة للوحة الأثر' : 'Back to dashboard'}</button>
-            <button className="btn-soft" onClick={() => { setDone(false); setCreatedId(''); chooseCategory(defaultCategory); }}>{lang === 'ar' ? 'تسجيل أثر آخر' : 'Record another'}</button>
+            <button className="btn-soft" onClick={() => { setDone(false); setCreatedId(''); setCreatedVerificationLink(''); setVerificationError(''); chooseCategory(defaultCategory); }}>{lang === 'ar' ? 'تسجيل أثر آخر' : 'Record another'}</button>
           </div>
         </div>
       ) : (

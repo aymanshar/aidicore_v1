@@ -89,10 +89,11 @@ function updateDemoUserImpact(userId: string, credits: number) {
   }
 }
 
-export async function createImpactRecord(input: { userId: string; userDisplayName: string; title: string; category: ImpactCategory; details: string; occurredAt: string; countryCode: string; city: string; visibility: Visibility; }) {
+export async function createImpactRecord(input: { userId: string; userDisplayName: string; userEmail?: string; title: string; category: ImpactCategory; details: string; occurredAt: string; countryCode: string; city: string; visibility: Visibility; }) {
   const safeInput = {
     ...input,
     userDisplayName: sanitizeText(input.userDisplayName, 60),
+    userEmail: sanitizeText(input.userEmail || '', 120).toLowerCase(),
     title: sanitizeText(input.title, 90),
     details: sanitizeText(input.details, 700),
     city: sanitizeText(input.city, 60),
@@ -161,13 +162,32 @@ export async function listPublicImpactRecords() {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() })) as ImpactRecord[];
 }
 
-export async function listMyImpactRecords(userId: string) {
+export async function listMyImpactRecords(userId: string, userEmail?: string) {
   if (!isFirebaseConfigured) {
-    return readDemoRecords().filter(r => r.userId === userId).sort((a, b) => b.createdAt - a.createdAt).slice(0, 100);
+    return readDemoRecords()
+      .filter(r => r.userId === userId || (userEmail && r.userEmail === userEmail.toLowerCase()))
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 100);
   }
-  const q = query(collection(db, 'impact_records'), where('userId', '==', userId), orderBy('createdAt', 'desc'), limit(100));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() })) as ImpactRecord[];
+
+  // Keep this query simple to avoid missing composite index issues in production.
+  // Sorting happens client-side after the owner-only result set is loaded.
+  const byUserSnap = await getDocs(query(collection(db, 'impact_records'), where('userId', '==', userId), limit(100))).catch(() => null);
+  let records = byUserSnap ? byUserSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as ImpactRecord[] : [];
+
+  // Safety fallback for older records created before duplicate-user cleanup or before userEmail was saved.
+  if (records.length === 0 && userEmail) {
+    const byEmailSnap = await getDocs(query(collection(db, 'impact_records'), where('userEmail', '==', userEmail.toLowerCase()), limit(100))).catch(() => null);
+    records = byEmailSnap ? byEmailSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as ImpactRecord[] : [];
+  }
+
+  return records.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0)).slice(0, 100);
+}
+
+export async function getImpactRecordById(id: string) {
+  if (!isFirebaseConfigured) return readDemoRecords().find((record) => record.id === id) || null;
+  const snap = await getDoc(doc(db, 'impact_records', id));
+  return snap.exists() ? ({ id: snap.id, ...snap.data() } as ImpactRecord) : null;
 }
 
 export async function listPendingImpactRecords() {

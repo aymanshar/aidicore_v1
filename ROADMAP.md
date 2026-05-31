@@ -1,3 +1,11 @@
+## V1.7.3 - Verification Link Visibility & Dashboard Record Fix
+
+- Added direct verification-link creation immediately after submitting an impact record.
+- Kept per-record verification links visible in the user dashboard.
+- Fixed user dashboard record loading by simplifying the owner query and adding email fallback for older/duplicate profile records.
+- Added userEmail to new impact records for safer account/profile matching.
+- Updated footer/app version to v1.7.3.
+
 
 ## V1.7.2 - User-Led Verification Links
 
