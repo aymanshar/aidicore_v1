@@ -6,6 +6,14 @@ import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../i18n/LanguageContext';
 import { logout } from '../services/authService';
 import type { Page } from '../App';
+import type { Language } from '../types';
+
+function copy(lang: 'ar' | 'en' | 'fr', ar: string, en: string, fr: string) {
+  return lang === 'ar' ? ar : lang === 'fr' ? fr : en;
+}
+
+const SUPPORTED_LANGUAGES: Language[] = ['ar', 'en', 'fr'];
+const LANGUAGE_NAMES: Record<Language, string> = { ar: 'AR', en: 'EN', fr: 'FR' };
 
 export function Layout({ page, setPage, children }: { page: Page; setPage: (page: Page) => void; children: ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -51,28 +59,25 @@ export function Layout({ page, setPage, children }: { page: Page; setPage: (page
             </span>
           </button>
 
-          <nav className="hidden items-center gap-2 lg:flex">
+          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 xl:gap-2 lg:flex">
             {nav.map((item) => (
-              <button key={item.key} onClick={() => go(item.key)} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${page === item.key ? 'bg-white text-slate-950' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}>
+              <button key={item.key} onClick={() => go(item.key)} className={`nav-pill ${page === item.key ? 'nav-pill-active' : ''}`}>
                 {item.label}
               </button>
             ))}
           </nav>
 
-          <div className="hidden items-center gap-2 lg:flex">
-            <button className="btn-soft !px-3 !py-2" onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}>
-              <Globe2 size={16} />
-              {lang === 'en' ? 'AR' : 'EN'}
-            </button>
+          <div className="hidden shrink-0 items-center gap-2 lg:flex">
+            <LanguageSwitcher lang={lang} setLang={setLang} />
             {firebaseUser ? (
               <>
-                <button className="btn-soft !px-4 !py-2" onClick={() => go('dashboard')}>{t('dashboard')}</button>
-                <button className="btn-primary !px-4 !py-2" onClick={() => go('record')}>{t('recordImpact')}</button>
-                {isAdmin && <button className="btn-soft !px-4 !py-2" onClick={() => go('admin')}>{t('admin')}</button>}
-                <button className="btn-ghost !px-4 !py-2" onClick={handleLogout}>{t('logout')}</button>
+                <button className="btn-soft nav-action" onClick={() => go('dashboard')}>{t('dashboard')}</button>
+                <button className="btn-primary nav-action" onClick={() => go('record')}>{t('recordImpact')}</button>
+                {isAdmin && <button className="btn-soft nav-action" onClick={() => go('admin')}>{t('admin')}</button>}
+                <button className="btn-ghost nav-action" onClick={handleLogout}>{t('logout')}</button>
               </>
             ) : (
-              <button className="btn-primary !px-4 !py-2" onClick={() => go('login')}>{t('login')}</button>
+              <button className="btn-primary nav-action" onClick={() => go('login')}>{t('login')}</button>
             )}
           </div>
 
@@ -88,9 +93,10 @@ export function Layout({ page, setPage, children }: { page: Page; setPage: (page
                 {item.label}
               </button>
             ))}
-            <button className="mt-2 block w-full rounded-xl px-4 py-3 text-start font-semibold hover:bg-white/10" onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}>
-              {lang === 'en' ? 'العربية' : 'English'}
-            </button>
+            <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 p-2">
+              <div className="mb-2 px-2 text-xs font-bold uppercase tracking-[.18em] text-slate-400">Language</div>
+              <LanguageSwitcher lang={lang} setLang={setLang} mobile />
+            </div>
             {firebaseUser && (
               <button className="mt-2 block w-full rounded-xl px-4 py-3 text-start font-semibold text-red-200 hover:bg-red-500/10" onClick={handleLogout}>
                 {t('logout')}
@@ -113,14 +119,34 @@ export function Layout({ page, setPage, children }: { page: Page; setPage: (page
               </div>
             </div>
             <p className="mt-4 max-w-md leading-7">
-              {lang === 'ar' ? 'منصة أثر مجتمعي خصوصية-أولًا، مصممة لإظهار الخير بأمان وبدون تفاخر.' : 'A privacy-first community impact platform designed to make good visible safely, without turning kindness into competition.'}
+              {copy(lang, 'منصة أثر مجتمعي خصوصية-أولًا، مصممة لإظهار الخير بأمان وبدون تفاخر.', 'A privacy-first community impact platform designed to make good visible safely, without turning kindness into competition.', 'Une plateforme d’impact communautaire axée sur la confidentialité, conçue pour rendre le bien visible sans compétition.')}
             </p>
           </div>
-          <FooterLinks title={lang === 'ar' ? 'المنصة' : 'Platform'} items={nav} go={go} />
-          <FooterLinks title={lang === 'ar' ? 'القانون والتواصل' : 'Legal & Contact'} items={[{ key: 'privacy', label: 'Privacy' }, { key: 'terms', label: 'Terms' }, { key: 'contact', label: 'Contact' }]} go={go} />
+          <FooterLinks title={copy(lang, 'المنصة', 'Platform', 'Plateforme')} items={nav} go={go} />
+          <FooterLinks title={copy(lang, 'القانون والتواصل', 'Legal & Contact', 'Légal & contact')} items={[{ key: 'privacy', label: 'Privacy' }, { key: 'terms', label: 'Terms' }, { key: 'contact', label: 'Contact' }]} go={go} />
         </div>
-        <div className="mx-auto mt-8 max-w-7xl border-t border-white/10 pt-6 text-xs">AidiCore © 2026 — Version 1.3.0 Impact Engine</div>
+        <div className="mx-auto mt-8 max-w-7xl border-t border-white/10 pt-6 text-xs">AidiCore © 2026 — Version 1.4.2 Navigation & Language Switch Fix</div>
       </footer>
+    </div>
+  );
+}
+
+
+function LanguageSwitcher({ lang, setLang, mobile = false }: { lang: Language; setLang: (lang: Language) => void; mobile?: boolean }) {
+  return (
+    <div className={mobile ? 'language-switch language-switch-mobile' : 'language-switch'} aria-label="Language switcher">
+      <Globe2 size={mobile ? 15 : 16} className="text-slate-300" />
+      {SUPPORTED_LANGUAGES.map((code) => (
+        <button
+          key={code}
+          type="button"
+          onClick={() => setLang(code)}
+          className={`language-option ${lang === code ? 'language-option-active' : ''}`}
+          aria-pressed={lang === code}
+        >
+          {LANGUAGE_NAMES[code]}
+        </button>
+      ))}
     </div>
   );
 }

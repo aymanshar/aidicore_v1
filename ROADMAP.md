@@ -35,7 +35,7 @@
 - Settings page foundation
 - Firestore security rules hardening
 
-## V1.3 — Impact Records Workflow
+## V1.3 — Impact Records Workflow ✅
 - Better Record Impact form
 - Duplicate/grouping feedback
 - Optional proof attachment design
@@ -43,14 +43,27 @@
 - Draft/success states
 - My Impact filtering by status/category
 
-## V1.4 — Admin Console Expansion
+## V1.4 — Live Data & Impact Credits Foundation ✅
+- Removed demo homepage statistics.
+- Added live Firestore statistics.
+- Added Impact Credits foundation with small decimal values.
+- Added guided impact recording and last-used city defaults.
+
+## V1.4.2 — Content & Localization Cleanup ✅
+- Cleaned Arabic/English product copy.
+- Added French language foundation.
+- Added French category names.
+- Updated terminology to Impact Index / مؤشر الأثر.
+- Added clearer custom-domain Google Auth error guidance.
+
+## V1.5 — Impact Identity & Passport
 - Pending / approved / rejected filters
 - Better audit note editor
 - Search and filtering for users
 - Admin analytics cards
 - Settings validation and safer defaults
 
-## V1.5 — Trust & Quality
+## V1.6 — Trust & Quality
 - Advanced moderation filters
 - Duplicate detection
 - Rate-limit design
@@ -125,3 +138,10 @@
 - Diminishing returns for repeated categories.
 - Similarity detection for titles/descriptions.
 - Possible duplicate records go to audit instead of generating extra credit.
+
+
+## Completed in V1.4.2
+- Persistent AR / EN / FR language switcher.
+- Shortened navbar labels for Arabic, English, and French.
+- Fixed desktop navbar wrapping and oversized buttons.
+- Improved mobile language selection.

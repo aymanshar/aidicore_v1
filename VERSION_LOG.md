@@ -1,5 +1,26 @@
 # AidiCore Version Log
 
+## V1.4.1 - Content & Localization Cleanup
+
+### Added
+- Added French language support foundation (`fr`) in the language model and dictionary.
+- Added French names for all impact categories.
+- Added clearer French copy for key public pages where supported.
+
+### Changed
+- Rewrote Arabic and English public-page copy to sound like a real product instead of prototype text.
+- Renamed wording from "رصيد الأثر / Impact Credits" in the user-facing interface toward "مؤشر الأثر / Impact Index" to avoid a financial or reward-like feeling.
+- Updated About, Rules, Impact, Actions, Footer, and legal placeholder copy.
+- Updated language switcher from two-language toggle to AR/EN/FR cycle.
+- Updated footer version label to V1.4.1.
+
+### Fixed
+- Added user-facing explanation for `auth/unauthorized-domain` so custom-domain Google Login issues are clearer.
+
+### Notes
+- Firebase Authentication still requires adding `aidicore.com` and `www.aidicore.com` to Authorized Domains for Google Login on the custom domain.
+- This release is a content/localization cleanup before building Impact Passport and Trust Engine features.
+
 ## V1.4.0 - Live Data & Impact Credits Foundation
 
 ### Added
@@ -182,3 +203,23 @@
 ### Security Notes
 - Google authentication is now the preferred sign-in method.
 - Email verification reduces fake-account creation and improves account recovery trust.
+
+## V1.4.2 - Navigation & Language Switch Fix
+
+### Added
+- Added a persistent AR / EN / FR language switcher that shows all supported languages at once.
+- Added active-language highlighting for desktop and mobile navigation.
+
+### Changed
+- Shortened navigation labels to avoid oversized buttons, especially in French.
+- Reworked desktop navbar spacing so the logo, page links, language selector, dashboard, record, and logout actions remain on one line on large screens.
+- Improved mobile menu language selection with the same AR / EN / FR options.
+- Updated footer version label to V1.4.2.
+
+### Fixed
+- Fixed confusing single-language toggle behavior.
+- Fixed French navbar wrapping where long labels like “À propos d’AidiCore” and “Enregistrer un impact” broke button layout.
+- Added no-wrap navbar button styles and responsive spacing rules.
+
+### Notes
+- This release keeps the three-language foundation while prioritizing a stable product navigation experience.

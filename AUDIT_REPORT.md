@@ -31,3 +31,8 @@ DEEP provided the desired implementation style:
 ## Decision
 
 AidiCore is rebuilt as **AidiCore 2.0**, a new TypeScript/Firebase app. Legacy files are used for understanding, not for direct code migration.
+
+
+## V1.4.1 Update
+
+Content and localization cleanup completed. Public copy is no longer treated as placeholder/prototype text. French localization foundation was added, and the next implementation priority remains Impact Passport / Alias System followed by Trust Engine hardening.

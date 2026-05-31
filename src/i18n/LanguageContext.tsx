@@ -6,7 +6,10 @@ type LanguageContextValue = { lang: Language; dir: 'rtl' | 'ltr'; setLang: (lang
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState<Language>(() => (localStorage.getItem('aidicore_lang') as Language) || 'en');
+  const [lang, setLangState] = useState<Language>(() => {
+    const saved = localStorage.getItem('aidicore_lang') as Language | null;
+    return saved === 'ar' || saved === 'en' || saved === 'fr' ? saved : 'en';
+  });
   const setLang = (next: Language) => { localStorage.setItem('aidicore_lang', next); setLangState(next); };
   const value = useMemo<LanguageContextValue>(() => {
   const dir: 'rtl' | 'ltr' = lang === 'ar' ? 'rtl' : 'ltr';

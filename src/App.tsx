@@ -87,6 +87,14 @@ function Section({ children, className = '' }: { children: ReactNode; className?
   return <section className={`mx-auto max-w-7xl px-4 py-16 ${className}`}>{children}</section>;
 }
 
+function copy(lang: 'ar' | 'en' | 'fr', ar: string, en: string, fr: string) {
+  return lang === 'ar' ? ar : lang === 'fr' ? fr : en;
+}
+
+function categoryLabel(category: { ar: string; en: string; fr?: string }, lang: 'ar' | 'en' | 'fr') {
+  return lang === 'ar' ? category.ar : lang === 'fr' ? (category.fr || category.en) : category.en;
+}
+
 function Home({ setPage }: { setPage: (p: Page) => void }) {
   const { t, lang } = useLanguage();
   const featuredCategories = categories.slice(0, 6);
@@ -109,7 +117,7 @@ function Home({ setPage }: { setPage: (p: Page) => void }) {
           <motion.div {...fade}>
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-200 shadow-[0_0_40px_rgba(16,185,129,.12)]">
               <Sparkles size={16} />
-              {lang === 'ar' ? 'منصة أثر مجتمعي خصوصية-أولًا' : 'Privacy-first community impact'}
+              {copy(lang, 'منصة أثر مجتمعي خصوصية-أولًا', 'Privacy-first community impact', 'Impact communautaire respectueux de la vie privée')}
             </div>
             <h1 className="max-w-4xl text-5xl font-extrabold tracking-tight text-white md:text-7xl">
               {t('tagline')}.
@@ -125,9 +133,9 @@ function Home({ setPage }: { setPage: (p: Page) => void }) {
               </button>
             </div>
             <div className="mt-8 grid max-w-2xl gap-3 sm:grid-cols-3">
-              <TrustPill icon={<LockKeyhole size={16} />} label={lang === 'ar' ? 'خصوصية افتراضية' : 'Privacy by default'} />
-              <TrustPill icon={<ShieldCheck size={16} />} label={lang === 'ar' ? 'مراجعة قبل الاعتماد' : 'Reviewed before approval'} />
-              <TrustPill icon={<EyeOff size={16} />} label={lang === 'ar' ? 'بدون تفاخر أو ترتيب' : 'No leaderboard'} />
+              <TrustPill icon={<LockKeyhole size={16} />} label={copy(lang, 'خصوصية افتراضية', 'Privacy by default', 'Confidentialité par défaut')} />
+              <TrustPill icon={<ShieldCheck size={16} />} label={copy(lang, 'مراجعة قبل الاعتماد', 'Reviewed before approval', 'Examen avant approbation')} />
+              <TrustPill icon={<EyeOff size={16} />} label={copy(lang, 'بدون تفاخر أو ترتيب', 'No leaderboard', 'Sans classement')} />
             </div>
           </motion.div>
 
@@ -136,7 +144,7 @@ function Home({ setPage }: { setPage: (p: Page) => void }) {
               <div>
                 <p className="text-sm font-bold text-emerald-300">AidiCore Impact Pulse</p>
                 <h2 className="mt-1 text-2xl font-extrabold text-white">
-                  {lang === 'ar' ? 'مؤشر الأثر الآمن' : 'Safe Impact Snapshot'}
+                  {copy(lang, 'مؤشر الأثر الآمن', 'Safe Impact Snapshot', 'Indicateur d’impact sécurisé')}
                 </h2>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-emerald-300">
@@ -144,17 +152,17 @@ function Home({ setPage }: { setPage: (p: Page) => void }) {
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Metric title={lang === 'ar' ? 'أثر مسجل' : 'Actions Recorded'} value={stats ? String(stats.totalRecords) : '—'} />
-              <Metric title={lang === 'ar' ? 'مدينة' : 'Cities'} value={stats ? String(stats.citiesCount) : '—'} />
-              <Metric title={lang === 'ar' ? 'مجالات خدمة' : 'Categories'} value={stats ? String(stats.categoriesCount) : '—'} />
-              <Metric title={lang === 'ar' ? 'مراجعة آمنة' : 'Safe Review'} value={safeReviewText} />
+              <Metric title={copy(lang, 'أثر مسجل', 'Actions Recorded', 'Actions enregistrées')} value={stats ? String(stats.totalRecords) : '—'} />
+              <Metric title={copy(lang, 'مدينة', 'Cities', 'Villes')} value={stats ? String(stats.citiesCount) : '—'} />
+              <Metric title={copy(lang, 'مجالات خدمة', 'Categories', 'Domaines')} value={stats ? String(stats.categoriesCount) : '—'} />
+              <Metric title={copy(lang, 'مراجعة آمنة', 'Safe Review', 'Examen sécurisé')} value={safeReviewText} />
             </div>
             <div className="mt-5 rounded-3xl border border-white/10 bg-white/5 p-5">
-              <p className="text-sm font-semibold text-white">{lang === 'ar' ? 'حالة المجتمع الآن' : 'Current community status'}</p>
+              <p className="text-sm font-semibold text-white">{copy(lang, 'حالة المجتمع الآن', 'Current community status', 'État actuel de la communauté')}</p>
               <p className="mt-2 text-sm leading-6 text-slate-300">
                 {stats && stats.approvedRecords > 0
-                  ? (lang === 'ar' ? `${stats.approvedRecords} أثر معتمد حتى الآن بدون كشف بيانات شخصية.` : `${stats.approvedRecords} approved impact records so far without exposing personal details.`)
-                  : (lang === 'ar' ? 'لا توجد آثار معتمدة بعد. ستظهر البيانات الحية هنا بعد المراجعة.' : 'No approved impact records yet. Live data will appear here after review.')}
+                  ? copy(lang, `${stats.approvedRecords} أثر معتمد حتى الآن بدون كشف بيانات شخصية.`, `${stats.approvedRecords} approved impact records so far without exposing personal details.`, `${stats.approvedRecords} contributions approuvées jusqu’à présent sans exposer de données personnelles.`)
+                  : copy(lang, 'لا توجد آثار معتمدة بعد. ستظهر البيانات الحية هنا بعد المراجعة.', 'No approved impact records yet. Live data will appear here after review.', 'Aucun impact approuvé pour le moment. Les données réelles apparaîtront ici après examen.')}
               </p>
             </div>
           </motion.div>
@@ -163,11 +171,12 @@ function Home({ setPage }: { setPage: (p: Page) => void }) {
 
       <Section className="pt-4">
         <Title
-          title={lang === 'ar' ? 'مجالات أثر جاهزة وآمنة' : 'Guided impact categories'}
+          title={copy(lang, 'مجالات الأثر', 'Impact Categories', 'Domaines d’impact')}
           text={
             lang === 'ar'
-              ? 'قوالب واضحة تساعد المستخدم على التسجيل بسرعة، وتقلل مشاركة البيانات الحساسة.'
-              : 'Clear templates make recording faster and reduce the chance of sharing sensitive information.'
+              ? 'اختر المجال الأقرب للأثر الذي ترغب في تسجيله. تساعد هذه المجالات على توثيق المبادرات المجتمعية بطريقة مبسطة وآمنة.'
+              : lang === 'fr' ? 'Choisissez le domaine le plus proche de l’impact que vous souhaitez enregistrer. Ces domaines simplifient la contribution tout en protégeant la confidentialité.'
+              : 'Choose the closest category for the impact you want to record. Guided categories make contribution faster and reduce unnecessary sensitive details.'
           }
         />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -178,9 +187,9 @@ function Home({ setPage }: { setPage: (p: Page) => void }) {
                 <div className={`mb-5 inline-flex rounded-2xl bg-gradient-to-br ${category.color} p-3 text-white shadow-lg`}>
                   <Icon />
                 </div>
-                <h3 className="text-xl font-bold text-white">{lang === 'ar' ? category.ar : category.en}</h3>
+                <h3 className="text-xl font-bold text-white">{categoryLabel(category, lang)}</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-400">
-                  {lang === 'ar' ? 'سجل أثرًا مختصرًا وآمنًا ضمن مجال واضح.' : 'Record safe, concise impact under a clear category.'}
+                  {copy(lang, 'سجل أثرًا مختصرًا وآمنًا ضمن مجال واضح.', 'Record safe, concise impact under a clear category.', 'Enregistrez un impact clair, court et sûr dans un domaine précis.')}
                 </p>
               </button>
             );
@@ -191,12 +200,12 @@ function Home({ setPage }: { setPage: (p: Page) => void }) {
       <Section>
         <Title
           title={lang === 'ar' ? 'كيف يعمل؟' : 'How it works'}
-          text={lang === 'ar' ? 'ثلاث خطوات بسيطة تحافظ على الثقة والخصوصية.' : 'Three simple steps designed around trust and privacy.'}
+          text={copy(lang, 'ثلاث خطوات بسيطة تحافظ على الثقة والخصوصية.', 'Three simple steps designed around trust and privacy.', 'Trois étapes simples conçues autour de la confiance et de la confidentialité.')}
         />
         <div className="grid gap-4 md:grid-cols-3">
-          <Step icon={<UserRoundCheck />} title={t('record')} text={lang === 'ar' ? 'المستخدم يسجل أثرًا إيجابيًا مع سياق آمن على مستوى المدينة.' : 'Submit a positive action with safe city-level context.'} />
-          <Step icon={<ShieldCheck />} title={t('review')} text={lang === 'ar' ? 'الأفعال الحساسة أو المشكوك فيها تدخل مراجعة الإدارة.' : 'Moderators review suspicious or sensitive records.'} />
-          <Step icon={<CheckCircle2 />} title={t('visibleImpact')} text={lang === 'ar' ? 'الأثر المعتمد يزيد رصيد الثقة والأثر المجتمعي.' : 'Approved actions increase personal and community impact.'} />
+          <Step icon={<UserRoundCheck />} title={t('record')} text={copy(lang, 'المستخدم يسجل أثرًا إيجابيًا مع سياق آمن على مستوى المدينة.', 'Submit a positive action with safe city-level context.', 'Enregistrez une action positive avec un contexte limité à la ville.')} />
+          <Step icon={<ShieldCheck />} title={t('review')} text={copy(lang, 'السجلات الحساسة أو المشكوك فيها تدخل مراجعة الإدارة.', 'Moderators review sensitive or suspicious records.', 'Les enregistrements sensibles ou douteux sont examinés par l’équipe.')} />
+          <Step icon={<CheckCircle2 />} title={t('visibleImpact')} text={copy(lang, 'الأثر المعتمد يرفع مؤشر الأثر والثقة ببطء وبدون مبالغة.', 'Approved actions gradually increase impact and trust indicators.', 'Les actions approuvées renforcent progressivement les indicateurs d’impact et de confiance.')} />
         </div>
       </Section>
     </>
@@ -245,10 +254,10 @@ function Actions({ setPage }: { setPage: (p: Page) => void }) {
     <Section>
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
         <Title
-          title={lang === 'ar' ? 'مجالات الأثر' : 'Impact Categories'}
-          text={lang === 'ar' ? 'قوالب واضحة تساعد المستخدم على التسجيل بدون كشف بيانات حساسة.' : 'Guided categories help users record safer, clearer impact.'}
+          title={copy(lang, 'مجالات الأثر', 'Impact Categories', 'Domaines d’impact')}
+          text={copy(lang, 'اختر المجال الأقرب للأثر الذي ترغب في تسجيله. تساعد هذه المجالات على توثيق المبادرات المجتمعية بطريقة مبسطة وآمنة.', 'Choose the closest category for the impact you want to record. Guided categories help users record safer, clearer contributions.', 'Choisissez le domaine le plus proche de l’impact à enregistrer. Les catégories guidées rendent la contribution plus claire et plus sûre.')}
         />
-        <button className="btn-primary w-fit" onClick={() => setPage('record')}>{lang === 'ar' ? 'سجّل أثرًا' : 'Record Impact'}</button>
+        <button className="btn-primary w-fit" onClick={() => setPage('record')}>{copy(lang, 'سجّل أثرًا', 'Record Impact', 'Enregistrer un impact')}</button>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {categories.map((category) => {
@@ -258,9 +267,9 @@ function Actions({ setPage }: { setPage: (p: Page) => void }) {
               <div className={`mb-5 inline-flex rounded-2xl bg-gradient-to-br ${category.color} p-3 text-white`}>
                 <Icon />
               </div>
-              <h3 className="text-xl font-bold">{lang === 'ar' ? category.ar : category.en}</h3>
+              <h3 className="text-xl font-bold">{categoryLabel(category, lang)}</h3>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                {lang === 'ar' ? 'سجل أثرًا مختصرًا وآمنًا بدون بيانات شخصية حساسة.' : 'Record concise, safe impact without sensitive personal data.'}
+                {copy(lang, 'سجل أثرًا مختصرًا وآمنًا ضمن مجال واضح.', 'Record concise, safe impact under a clear category.', 'Enregistrez un impact court et sûr dans un domaine clair.')}
               </p>
             </div>
           );
@@ -288,21 +297,21 @@ function Impact() {
     <Section>
       <Title
         title={lang === 'ar' ? 'الأثر المجتمعي' : 'Community Impact'}
-        text={lang === 'ar' ? 'صفحة عامة مجهولة الهوية لا تشبه شبكات التواصل ولا تعرض بيانات شخصية.' : 'An anonymous-first public impact view, not a social feed.'}
+        text={copy(lang, 'تعرض هذه الصفحة ملخصًا عامًا للآثار المعتمدة داخل المنصة مع الحفاظ على الخصوصية وعدم إظهار بيانات شخصية.', 'This page shows a privacy-safe summary of approved impact records without exposing personal information.', 'Cette page présente un résumé anonyme des impacts approuvés sans exposer d’informations personnelles.')}
       />
 
       <div className="mb-8 grid gap-4 md:grid-cols-5">
         <Metric title={lang === 'ar' ? 'إجمالي السجلات' : 'Total records'} value={stats ? String(stats.totalRecords) : '…'} />
-        <Metric title={lang === 'ar' ? 'معتمد' : 'Approved'} value={stats ? String(stats.approvedRecords) : '…'} />
+        <Metric title={copy(lang, 'معتمد', 'Approved', 'Approuvé')} value={stats ? String(stats.approvedRecords) : '…'} />
         <Metric title={lang === 'ar' ? 'قيد المراجعة' : 'Pending'} value={stats ? String(stats.pendingRecords) : '…'} />
         <Metric title={lang === 'ar' ? 'مدن' : 'Cities'} value={stats ? String(stats.citiesCount) : '…'} />
-        <Metric title={lang === 'ar' ? 'رصيد الأثر' : 'Impact credits'} value={stats ? String(stats.totalImpactCredits) : '…'} />
+        <Metric title={copy(lang, 'مؤشر الأثر', 'Impact Index', 'Indice d’impact')} value={stats ? String(stats.totalImpactCredits) : '…'} />
       </div>
 
       <div className="mb-8 grid gap-4 md:grid-cols-3">
-        <Step icon={<HeartHandshake />} title={lang === 'ar' ? 'مجهول افتراضيًا' : 'Anonymous by default'} text={lang === 'ar' ? 'لا يظهر اسم المستخدم إلا باختياره.' : 'Names are only shown when the user chooses public attribution.'} />
-        <Step icon={<ClipboardCheck />} title={lang === 'ar' ? 'اعتماد قبل الظهور' : 'Reviewed before visibility'} text={lang === 'ar' ? 'لا يظهر الأثر كمعتمد قبل المراجعة.' : 'Impact is not treated as approved before review.'} />
-        <Step icon={<Layers3 />} title={lang === 'ar' ? 'أثر لا منافسة' : 'Impact, not competition'} text={lang === 'ar' ? 'لا توجد قوائم ترتيب أو ضغط اجتماعي.' : 'No leaderboards or unhealthy social pressure.'} />
+        <Step icon={<HeartHandshake />} title={copy(lang, 'مجهول افتراضيًا', 'Anonymous by default', 'Anonyme par défaut')} text={copy(lang, 'لا يظهر اسم المستخدم إلا إذا اختار ذلك بنفسه.', 'Names are only shown when the user chooses public attribution.', 'Le nom n’apparaît que si l’utilisateur le choisit.')} />
+        <Step icon={<ClipboardCheck />} title={copy(lang, 'اعتماد قبل الظهور', 'Reviewed before visibility', 'Examen avant publication')} text={copy(lang, 'لا يظهر الأثر كمعتمد قبل المراجعة.', 'Impact is not treated as approved before review.', 'Un impact n’est pas considéré comme approuvé avant examen.')} />
+        <Step icon={<Layers3 />} title={copy(lang, 'أثر لا منافسة', 'Impact, not competition', 'Impact, pas compétition')} text={copy(lang, 'لا توجد قوائم ترتيب أو ضغط اجتماعي.', 'No leaderboards or unhealthy social pressure.', 'Pas de classement ni de pression sociale.')} />
       </div>
       <PublicFeed />
     </Section>
@@ -325,19 +334,19 @@ function PublicFeed() {
     };
   }, []);
 
-  if (loading) return <div className="card p-6 text-slate-300">{lang === 'ar' ? 'جارٍ تحميل الأثر العام...' : 'Loading public impact...'}</div>;
+  if (loading) return <div className="card p-6 text-slate-300">{copy(lang, 'جارٍ تحميل الأثر العام...', 'Loading public impact...', 'Chargement de l’impact public...')}</div>;
 
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between gap-4">
-        <h3 className="text-2xl font-extrabold text-white">{lang === 'ar' ? 'أثر عام معتمد' : 'Approved public impact'}</h3>
+        <h3 className="text-2xl font-extrabold text-white">{copy(lang, 'أثر عام معتمد', 'Approved public impact', 'Impact public approuvé')}</h3>
         <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200">
-          {records.length} {lang === 'ar' ? 'سجل' : 'records'}
+          {records.length} {copy(lang, 'سجل', 'records', 'enregistrements')}
         </span>
       </div>
       {records.length === 0 ? (
         <div className="card p-6 text-slate-300">
-          {lang === 'ar' ? 'لا توجد سجلات عامة معتمدة بعد. بعد مراجعة الإدارة ستظهر السجلات العامة هنا.' : 'No approved public records yet. After admin review, public records will appear here.'}
+          {copy(lang, 'لا توجد سجلات عامة معتمدة بعد. بعد مراجعة الإدارة ستظهر السجلات العامة هنا.', 'No approved public records yet. After admin review, public records will appear here.', 'Aucun impact public approuvé pour le moment. Les contributions apparaîtront ici après examen.')}
         </div>
       ) : (
         records.map((record) => <ImpactCard key={record.id} record={record} />)
@@ -348,7 +357,7 @@ function PublicFeed() {
 
 function ImpactCard({ record }: { record: ImpactRecord }) {
   const { lang } = useLanguage();
-  const actor = record.visibility === 'public_profile' ? record.userDisplayName : lang === 'ar' ? 'شخص ما' : 'Someone';
+  const actor = record.visibility === 'public_profile' ? record.userDisplayName : copy(lang, 'شخص ما', 'Someone', 'Quelqu’un');
   return (
     <div className="card p-5">
       <div className="flex items-start justify-between gap-4">
@@ -356,7 +365,7 @@ function ImpactCard({ record }: { record: ImpactRecord }) {
           <h3 className="font-bold text-white">{record.title}</h3>
           <p className="mt-1 text-sm text-slate-400">{record.city}, {record.countryCode} · {actor}</p>
         </div>
-        <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-300">{lang === 'ar' ? 'معتمد' : 'Approved'}</span>
+        <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-300">{copy(lang, 'معتمد', 'Approved', 'Approuvé')}</span>
       </div>
     </div>
   );
@@ -364,12 +373,19 @@ function ImpactCard({ record }: { record: ImpactRecord }) {
 
 function Rules() {
   const { lang } = useLanguage();
-  const rules = lang === 'ar'
-    ? ['لا تشارك بيانات شخصية حساسة.', 'لا تستخدم عناوين دقيقة.', 'الأثر لا يظهر كمعتمد قبل المراجعة.', 'النقاط رمزية وليست وعدًا ماليًا.', 'أي محاولة احتيال قد تؤدي لتعليق الحساب.']
-    : ['Do not share sensitive personal data.', 'Do not use precise addresses.', 'Impact records are reviewed before approval.', 'Impact score is symbolic, not financial.', 'Abuse or spam can lead to suspension.'];
+  const rules = [
+    copy(lang, 'احمِ خصوصيتك وخصوصية الآخرين بعدم مشاركة أي معلومات شخصية أو بيانات تعريفية.', 'Protect your privacy and others by not sharing personal or identifying information.', 'Protégez votre vie privée et celle des autres en évitant toute information personnelle ou identifiable.'),
+    copy(lang, 'استخدم وصفًا عامًا للمكان دون ذكر عناوين أو مواقع دقيقة.', 'Use a general location description without precise addresses.', 'Utilisez une description générale du lieu sans adresses précises.'),
+    copy(lang, 'تمر السجلات بمرحلة مراجعة قبل ظهورها ضمن الأثر العام.', 'Records go through review before appearing as public impact.', 'Les contributions sont examinées avant d’apparaître publiquement.'),
+    copy(lang, 'مؤشرات الأثر رمزية وتعكس الاستمرارية والجودة، وليست وعدًا ماليًا.', 'Impact indicators are symbolic and reflect consistency and quality, not financial value.', 'Les indicateurs d’impact sont symboliques et reflètent la constance et la qualité, sans valeur financière.'),
+    copy(lang, 'قد يتم تقييد الحسابات التي تستخدم المنصة بصورة مضللة أو متكررة بشكل غير طبيعي.', 'Accounts that misuse the platform or submit unnatural repeated records may be restricted.', 'Les comptes utilisant la plateforme de façon trompeuse ou répétitive peuvent être limités.'),
+  ];
   return (
     <Section>
-      <Title title={lang === 'ar' ? 'قواعد الثقة' : 'Trust Rules'} text={lang === 'ar' ? 'القواعد مصممة لحماية المستخدمين ومنع التفاخر أو الاحتيال.' : 'Rules are designed to protect users and prevent abuse.'} />
+      <Title
+        title={copy(lang, 'قواعد المنصة', 'Platform Rules', 'Règles de la plateforme')}
+        text={copy(lang, 'تم تصميم AidiCore لتشجيع الأثر الإيجابي مع الحفاظ على الخصوصية والثقة. تساعد هذه القواعد على توفير بيئة آمنة وعادلة لجميع المستخدمين.', 'AidiCore is designed to encourage positive impact while protecting privacy and trust. These rules help keep the platform safe and fair for everyone.', 'AidiCore encourage l’impact positif tout en protégeant la confidentialité et la confiance. Ces règles maintiennent un espace sûr et équitable.')}
+      />
       <div className="grid gap-3">
         {rules.map((rule) => (
           <div className="card flex gap-3 p-5" key={rule}>
@@ -386,19 +402,25 @@ function About() {
   const { lang } = useLanguage();
   return (
     <Section>
-      <Title title={lang === 'ar' ? 'عن AidiCore' : 'About AidiCore'} text={lang === 'ar' ? 'AidiCore منصة أثر مجتمعي تحافظ على الخصوصية والثقة.' : 'AidiCore is a privacy-first community impact platform.'} />
+      <Title
+        title={copy(lang, 'عن AidiCore', 'About AidiCore', 'À propos d’AidiCore')}
+        text={copy(lang, 'AidiCore منصة مجتمعية تركز على توثيق الأثر الإيجابي بطريقة تحافظ على الخصوصية وتشجع على الاستمرارية.', 'AidiCore is a privacy-first community impact platform for recording meaningful positive contributions safely.', 'AidiCore est une plateforme communautaire axée sur l’impact positif et la protection de la vie privée.')}
+      />
       <div className="grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
         <div className="card p-7 text-lg leading-8 text-slate-300">
-          {lang === 'ar'
-            ? 'نحن لا نبني شبكة اجتماعية للتفاخر، بل سجل أثر آمن يساعد الأفراد والمؤسسات على قياس الخير بطريقة محترمة وقابلة للتوسع.'
-            : 'We are not building a social network for showing off. We are building a safer impact registry that helps people and organizations measure positive actions respectfully.'}
+          {copy(
+            lang,
+            'يمكن للأفراد تسجيل مساهماتهم المجتمعية أو الإنسانية أو التطوعية دون مشاركة بيانات شخصية حساسة. يتم مراجعة السجلات قبل اعتمادها، مع التركيز على الثقة وجودة المحتوى بدلًا من التفاخر أو المنافسة.',
+            'People can record volunteer, social, or humanitarian actions without exposing sensitive personal data. Records are reviewed before approval, with a focus on trust, content quality, and long-term impact rather than competition.',
+            'Les utilisateurs peuvent enregistrer des actions bénévoles, sociales ou humanitaires sans exposer de données sensibles. Chaque contribution est examinée avant approbation afin de privilégier la confiance, la qualité et l’impact réel.'
+          )}
         </div>
         <div className="card p-7">
-          <h3 className="text-xl font-bold text-white">{lang === 'ar' ? 'مبادئ المنتج' : 'Product principles'}</h3>
+          <h3 className="text-xl font-bold text-white">{copy(lang, 'مبادئ المنتج', 'Product principles', 'Principes du produit')}</h3>
           <div className="mt-5 grid gap-3 text-sm text-slate-300">
-            <TrustPill icon={<LockKeyhole size={16} />} label={lang === 'ar' ? 'خصوصية قبل الانتشار' : 'Privacy before visibility'} />
-            <TrustPill icon={<ShieldCheck size={16} />} label={lang === 'ar' ? 'ثقة قبل التقدير' : 'Trust before recognition'} />
-            <TrustPill icon={<HeartHandshake size={16} />} label={lang === 'ar' ? 'أثر لا تفاخر' : 'Impact, not showing off'} />
+            <TrustPill icon={<LockKeyhole size={16} />} label={copy(lang, 'خصوصية قبل الانتشار', 'Privacy before visibility', 'Confidentialité avant visibilité')} />
+            <TrustPill icon={<ShieldCheck size={16} />} label={copy(lang, 'ثقة قبل التقدير', 'Trust before recognition', 'Confiance avant reconnaissance')} />
+            <TrustPill icon={<HeartHandshake size={16} />} label={copy(lang, 'أثر لا تفاخر', 'Impact, not showing off', 'Impact, pas vanité')} />
           </div>
         </div>
       </div>
@@ -425,6 +447,9 @@ function AuthScreen({ mode, setPage }: { mode: 'login' | 'signup'; setPage: (p: 
     }
     if (message.includes('auth/invalid-credential') || message.includes('auth/wrong-password')) {
       return lang === 'ar' ? 'بيانات الدخول غير صحيحة.' : 'Invalid email or password.';
+    }
+    if (message.includes('auth/unauthorized-domain')) {
+      return lang === 'ar' ? 'هذا الدومين غير مضاف في Firebase Authentication. أضف aidicore.com و www.aidicore.com في Authorized Domains.' : lang === 'fr' ? 'Ce domaine n’est pas autorisé dans Firebase Authentication. Ajoutez aidicore.com et www.aidicore.com aux domaines autorisés.' : 'This domain is not authorized in Firebase Authentication. Add aidicore.com and www.aidicore.com to Authorized Domains.';
     }
     if (message.includes('auth/email-already-in-use')) {
       return lang === 'ar' ? 'هذا البريد مسجل بالفعل.' : 'This email is already registered.';
@@ -559,15 +584,15 @@ function Dashboard({ setPage }: { setPage: (p: Page) => void }) {
 
   return (
     <Section>
-      <Title title={lang === 'ar' ? 'لوحة الأثر' : 'Impact Dashboard'} text={`${lang === 'ar' ? 'مرحبًا' : 'Welcome'}, ${appUser?.displayName || firebaseUser.email}`} />
+      <Title title={copy(lang, 'لوحة الأثر', 'Impact Dashboard', 'Tableau d’impact')} text={`${copy(lang, 'مرحبًا', 'Welcome', 'Bienvenue')}, ${appUser?.displayName || firebaseUser.email}`} />
       <div className="grid gap-4 md:grid-cols-4">
-        <Metric title={lang === 'ar' ? 'رصيد الأثر' : 'Impact credits'} value={String(appUser?.impactScore ?? 0)} />
-        <Metric title={lang === 'ar' ? 'معتمد' : 'Approved'} value={loading ? '…' : String(approved)} />
+        <Metric title={copy(lang, 'مؤشر الأثر', 'Impact Index', 'Indice d’impact')} value={String(appUser?.impactCredits ?? appUser?.impactScore ?? 0)} />
+        <Metric title={copy(lang, 'معتمد', 'Approved', 'Approuvé')} value={loading ? '…' : String(approved)} />
         <Metric title={lang === 'ar' ? 'قيد المراجعة' : 'Pending'} value={loading ? '…' : String(pending)} />
         <Metric title={lang === 'ar' ? 'مجالات' : 'Categories'} value={loading ? '…' : String(categoriesCount)} />
       </div>
       <div className="mt-8 flex flex-wrap gap-3">
-        <button className="btn-primary" onClick={() => setPage('record')}>{lang === 'ar' ? 'سجّل أثرًا' : 'Record Impact'}</button>
+        <button className="btn-primary" onClick={() => setPage('record')}>{copy(lang, 'سجّل أثرًا', 'Record Impact', 'Enregistrer un impact')}</button>
         <button className="btn-soft" onClick={() => setPage('profile')}>{lang === 'ar' ? 'الملف الشخصي' : 'Profile'}</button>
       </div>
       <MyRecords records={records} loading={loading} />
@@ -784,8 +809,8 @@ function RecordImpact({ setPage }: { setPage: (p: Page) => void }) {
                 return (
                   <button type="button" key={category.id} onClick={() => chooseCategory(category.id)} className={`rounded-3xl border p-4 text-start transition ${active ? 'border-emerald-300/60 bg-emerald-400/10' : 'border-white/10 bg-white/[.03] hover:border-emerald-300/30'}`}>
                     <div className={`mb-3 inline-flex rounded-2xl bg-gradient-to-br ${category.color} p-2 text-white`}><Icon size={18} /></div>
-                    <div className="font-bold text-white">{lang === 'ar' ? category.ar : category.en}</div>
-                    <div className="mt-1 text-xs text-emerald-200">+{categoryTemplate(category.id).credits} {lang === 'ar' ? 'رصيد أثر عند الاعتماد' : 'credit after approval'}</div>
+                    <div className="font-bold text-white">{categoryLabel(category, lang)}</div>
+                    <div className="mt-1 text-xs text-emerald-200">+{categoryTemplate(category.id).credits} {copy(lang, 'مؤشر أثر بعد الاعتماد', 'impact index after approval', 'indice d’impact après approbation')}</div>
                   </button>
                 );
               })}
@@ -798,7 +823,7 @@ function RecordImpact({ setPage }: { setPage: (p: Page) => void }) {
               <input className="input" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
             </div>
             <div>
-              <label className="mb-2 block text-sm font-bold text-slate-200">{lang === 'ar' ? 'رصيد متوقع بعد الاعتماد' : 'Expected credit after approval'}</label>
+              <label className="mb-2 block text-sm font-bold text-slate-200">{copy(lang, 'مؤشر متوقع بعد الاعتماد', 'Expected impact index after approval', 'Indice d’impact attendu après approbation')}</label>
               <div className="input flex items-center text-emerald-200">+{selectedTemplate.credits}</div>
             </div>
           </div>
@@ -943,7 +968,7 @@ function Admin() {
           {tab === 'overview' && (
             <div className="grid gap-4 md:grid-cols-4">
               <Metric title={lang === 'ar' ? 'قيد المراجعة' : 'Pending Review'} value={String(records.length)} />
-              <Metric title={lang === 'ar' ? 'معتمد' : 'Approved'} value={String(approved)} />
+              <Metric title={copy(lang, 'معتمد', 'Approved', 'Approuvé')} value={String(approved)} />
               <Metric title={lang === 'ar' ? 'مرفوض' : 'Rejected'} value={String(rejected)} />
               <Metric title={lang === 'ar' ? 'المستخدمون' : 'Users'} value={String(users.length)} />
             </div>
@@ -1037,25 +1062,34 @@ function SimplePage({ page }: { page: Page }) {
   const { lang } = useLanguage();
   const titles = useMemo<Record<Page, string>>(() => ({
     home: 'Home',
-    about: lang === 'ar' ? 'عن المشروع' : 'About',
-    actions: lang === 'ar' ? 'مجالات الأثر' : 'Actions',
-    rules: lang === 'ar' ? 'قواعد الثقة' : 'Rules',
-    impact: lang === 'ar' ? 'الأثر' : 'Impact',
-    login: 'Login',
-    signup: 'Signup',
-    dashboard: 'Dashboard',
-    record: 'Record Impact',
-    profile: lang === 'ar' ? 'الملف الشخصي' : 'Profile',
-    admin: 'Admin',
-    privacy: lang === 'ar' ? 'الخصوصية' : 'Privacy',
-    terms: lang === 'ar' ? 'الشروط' : 'Terms',
-    contact: lang === 'ar' ? 'تواصل معنا' : 'Contact',
+    about: copy(lang, 'عن AidiCore', 'About AidiCore', 'À propos d’AidiCore'),
+    actions: copy(lang, 'مجالات الأثر', 'Impact Categories', 'Domaines d’impact'),
+    rules: copy(lang, 'قواعد المنصة', 'Platform Rules', 'Règles de la plateforme'),
+    impact: copy(lang, 'الأثر المجتمعي', 'Community Impact', 'Impact communautaire'),
+    login: copy(lang, 'تسجيل الدخول', 'Login', 'Connexion'),
+    signup: copy(lang, 'حساب جديد', 'Sign up', 'Créer un compte'),
+    dashboard: copy(lang, 'لوحة الأثر', 'Impact Dashboard', 'Tableau d’impact'),
+    record: copy(lang, 'سجّل أثرًا', 'Record Impact', 'Enregistrer un impact'),
+    profile: copy(lang, 'جواز الأثر', 'Impact Passport', 'Passeport d’impact'),
+    admin: copy(lang, 'الإدارة', 'Admin', 'Administration'),
+    privacy: copy(lang, 'سياسة الخصوصية', 'Privacy Policy', 'Politique de confidentialité'),
+    terms: copy(lang, 'شروط الاستخدام', 'Terms of Use', 'Conditions d’utilisation'),
+    contact: copy(lang, 'تواصل معنا', 'Contact', 'Contact'),
+  }), [lang]);
+
+  const descriptions = useMemo<Record<Page, string>>(() => ({
+    home: '', about: '', actions: '', rules: '', impact: '', login: '', signup: '', dashboard: '', record: '', profile: '', admin: '',
+    privacy: copy(lang, 'نوضح كيف نحمي البيانات ونقلل جمع المعلومات الشخصية داخل AidiCore.', 'How AidiCore protects data and minimizes personal information collection.', 'Comment AidiCore protège les données et limite la collecte d’informations personnelles.'),
+    terms: copy(lang, 'استخدام المنصة يعني الالتزام بالخصوصية وعدم إساءة استخدام نظام الأثر.', 'Using the platform means respecting privacy and not abusing the impact system.', 'L’utilisation de la plateforme implique le respect de la confidentialité et du système d’impact.'),
+    contact: copy(lang, 'للاقتراحات أو الدعم أو الشراكات، تواصل معنا عبر القنوات الرسمية للمشروع.', 'For support, ideas, or partnerships, contact us through official AidiCore channels.', 'Pour le support, les idées ou les partenariats, contactez-nous via les canaux officiels d’AidiCore.'),
   }), [lang]);
 
   return (
     <Section>
-      <Title title={titles[page]} text={lang === 'ar' ? 'هذه الصفحة مثبتة في خريطة AidiCore V1 وسيتم تطوير محتواها في الإصدارات القادمة.' : 'This page is prepared in the AidiCore V1 route map and will be expanded in upcoming releases.'} />
-      <div className="card p-6 text-slate-300">{lang === 'ar' ? 'محتوى مبدئي للصفحات القانونية والتواصل والملف الشخصي.' : 'Content-ready placeholder for legal, contact, and profile content.'}</div>
+      <Title title={titles[page]} text={descriptions[page] || copy(lang, 'سيتم تطوير محتوى هذه الصفحة في الإصدارات القادمة ضمن رؤية AidiCore الرسمية.', 'This page will be expanded in upcoming releases following the official AidiCore roadmap.', 'Cette page sera enrichie dans les prochaines versions selon la feuille de route officielle d’AidiCore.')} />
+      <div className="card p-6 text-slate-300">
+        {descriptions[page] || copy(lang, 'المحتوى قيد التطوير بدون بيانات تجريبية أو وعود غير مؤكدة.', 'Content is under development without demo claims or unsupported promises.', 'Contenu en cours de développement, sans données de démonstration ni promesses non vérifiées.')}
+      </div>
     </Section>
   );
 }

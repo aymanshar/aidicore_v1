@@ -130,7 +130,7 @@ When product decisions or user requests change, also update:
 
 ## Current Version
 
-V1.2.2 — Signup Firestore Hotfix
+V1.4.1 — Content & Localization Cleanup
 
 ## Latest Implementation Decisions
 
@@ -178,3 +178,24 @@ Important rule: keep sensitive-data prevention close to the form and later add s
 - User may choose whether to show a public alias/name, but real identity should remain protected.
 - Growth should be psychologically meaningful: Seed → Sprout → Plant → Tree → Forest → Oasis.
 - Trust increases with approved records, low duplicate behavior, and trusted confirmations.
+
+
+## V1.4.1 Localization Decision
+
+- AidiCore officially supports Arabic and English and now has a French localization foundation.
+- Language switcher cycles AR → EN → FR.
+- French should be expanded gradually; critical public pages and category names are prioritized first.
+- Public wording should avoid reward/finance language. Use Impact Index / مؤشر الأثر instead of balance/points language.
+- The product should no longer show prototype/demo text on public pages.
+
+## Custom Domain Auth Decision
+
+- Google Login on aidicore.com requires adding both `aidicore.com` and `www.aidicore.com` to Firebase Authentication Authorized Domains.
+- If not configured, Firebase returns `auth/unauthorized-domain`.
+
+## V1.4.2 Navigation Decision
+
+- The language selector must always show all supported languages: AR, EN, and FR.
+- The active language should be visually highlighted instead of cycling through one hidden next language.
+- Navbar labels should be short and product-like to avoid layout breaks, especially in French.
+- Long product terms such as “Impact Dashboard” and “Enregistrer un impact” can be shortened in navigation while fuller wording can remain inside page content.

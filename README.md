@@ -161,3 +161,21 @@ After creating an email account, users must confirm the verification email befor
 ## V1.4.0 Notes
 
 AidiCore now removes homepage demo statistics and uses live Firestore-driven community metrics. The impact economy has moved toward small decimal Impact Credits and duplicate-aware scoring fields. The Record Impact flow is now guided with category cards and safe templates to reduce manual user input.
+
+
+## V1.4.2 Notes
+
+This release cleans up public product wording and introduces French localization foundation.
+
+### Included
+- Arabic/English copy cleanup for product pages.
+- French language support added to the language model and category names.
+- Public wording now uses Impact Index / مؤشر الأثر instead of reward-like wording.
+- Footer and documentation updated to V1.4.2.
+- Google Login custom-domain error now provides a clearer instruction.
+
+### Firebase Reminder
+For Google Login on the custom domain, add these to Firebase Authentication → Settings → Authorized Domains:
+
+- aidicore.com
+- www.aidicore.com

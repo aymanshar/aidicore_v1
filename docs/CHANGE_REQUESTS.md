@@ -194,3 +194,47 @@ AidiCore is now live and connected to Firebase, so demo numbers and fake example
 
 ### Status
 Approved and partially implemented in V1.4.0.
+
+
+---
+
+## 2026-05-31 - Content Cleanup and French Localization
+
+### Requested By
+Ayman
+
+### Request
+Replace prototype-style text across the site with product-appropriate copy, keep Arabic and English in mind, and add French if possible.
+
+### Decision
+Approved for V1.4.1.
+
+### Implementation
+- Added French to `Language` and dictionary.
+- Added French category labels.
+- Rewrote key public-page copy for About, Rules, Impact, Actions, footer, and placeholders.
+- Updated user-facing terminology from reward-like balance wording to Impact Index / مؤشر الأثر.
+- Added clearer Firebase custom-domain Google Login error guidance.
+
+### Status
+Implemented in V1.4.1.
+
+## 2026-05-31 - Fix Language Switcher and Navbar Layout
+
+### Requested By
+Ayman
+
+### Issue
+After adding French, the language button became confusing and the navbar buttons became too large or wrapped onto multiple lines.
+
+### Decision
+Approved as V1.4.2.
+
+### Implementation
+- Replaced the cycle-only language toggle with a persistent AR / EN / FR switcher.
+- Added active-language highlighting.
+- Shortened navigation labels in Arabic, English, and French.
+- Added no-wrap button and responsive navbar spacing styles.
+
+### Status
+Implemented in V1.4.2.

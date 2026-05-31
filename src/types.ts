@@ -1,4 +1,4 @@
-export type Language = 'en' | 'ar';
+export type Language = 'en' | 'ar' | 'fr';
 export type UserRole = 'user' | 'moderator' | 'admin' | 'super_admin';
 export type UserStatus = 'active' | 'suspended';
 export type ImpactStatus = 'pending' | 'approved' | 'rejected';
