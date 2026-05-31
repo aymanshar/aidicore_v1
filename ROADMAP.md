@@ -56,14 +56,22 @@
 - Updated terminology to Impact Index / مؤشر الأثر.
 - Added clearer custom-domain Google Auth error guidance.
 
-## V1.5 — Impact Identity & Passport
-- Pending / approved / rejected filters
-- Better audit note editor
-- Search and filtering for users
-- Admin analytics cards
-- Settings validation and safer defaults
+## V1.5 — Impact Identity & Passport ✅
+- Unique alias and availability checks
+- Friendly avatar library
+- Privacy controls
+- Growth stage and Impact Passport preview
+- Passport UI polish and safe public identity
 
-## V1.6 — Trust & Quality
+## V1.6 — Admin Review Center ✅
+- Admin review dashboard
+- Pending impact queue
+- Approve/reject workflow
+- Moderation notes
+- Audit log integration
+- Admin overview metrics including approved today
+
+## V1.7 — Trust & Quality
 - Advanced moderation filters
 - Duplicate detection
 - Rate-limit design
@@ -186,3 +194,13 @@ V1.5.1 now includes the final Passport permissions correction, improved Passport
 - Family Support
 
 These remain privacy-safe categories and do not require exposing personal data.
+
+
+## V1.6.1 — Admin Control & Impact Credit Hotfix
+
+- Standardized impact credits to 0.1 per approved record across all categories.
+- Improved Admin Impact Records tab to show all records with filters for all/pending/approved/rejected.
+- Added user profile delete action for super admins with audit logging.
+- Added UID and impact index visibility in Admin Users for debugging duplicate user documents.
+- Updated Firestore rules to allow super admin user profile deletion and alias cleanup.
+- Clarified that deleting a user profile from Firestore does not delete the Firebase Auth account.

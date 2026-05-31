@@ -15,6 +15,7 @@ import {
   Settings2,
   ShieldAlert,
   UserCog,
+  Trash2,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
@@ -34,7 +35,7 @@ import {
 } from './services/impactService';
 import { listAuditLogs } from './services/auditService';
 import { getSettings, saveSettings } from './services/settingsService';
-import { listUsers, updateUserRole, updateUserStatus } from './services/userService';
+import { deleteUserProfile, listUsers, updateUserRole, updateUserStatus } from './services/userService';
 import { AVATARS, calculateGrowthStage, getAvatar, getSafeDisplayName, isAliasAvailable, normalizeAlias, suggestAliases, validateAlias } from './services/passportService';
 import type { AppSettings, AppUser, AuditLog, CommunityImpactStats, ImpactCategory, ImpactRecord, UserRole, UserStatus, Visibility } from './types';
 
@@ -624,6 +625,7 @@ function Profile({ setPage }: { setPage: (p: Page) => void }) {
   const [message, setMessage] = useState('');
   const [messageTone, setMessageTone] = useState<'success' | 'error' | 'info'>('info');
   const [checkingAlias, setCheckingAlias] = useState(false);
+  const [aliasAvailability, setAliasAvailability] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -634,6 +636,22 @@ function Profile({ setPage }: { setPage: (p: Page) => void }) {
     setImpactPassportEnabled(Boolean(appUser?.impactPassportEnabled));
     setHideContributionCategories(Boolean(appUser?.hideContributionCategories));
   }, [appUser, firebaseUser]);
+
+  useEffect(() => {
+    if (!firebaseUser) return;
+    const checked = validateAlias(alias);
+    if (!checked.ok) {
+      setAliasAvailability(alias ? 'invalid' : 'idle');
+      return;
+    }
+    setAliasAvailability('checking');
+    const handle = window.setTimeout(() => {
+      isAliasAvailable(checked.alias, firebaseUser.uid)
+        .then((available) => setAliasAvailability(available ? 'available' : 'taken'))
+        .catch(() => setAliasAvailability('idle'));
+    }, 450);
+    return () => window.clearTimeout(handle);
+  }, [alias, firebaseUser]);
 
   if (!firebaseUser) return <RequireLogin setPage={setPage} />;
 
@@ -672,6 +690,20 @@ function Profile({ setPage }: { setPage: (p: Page) => void }) {
     copy(lang, '📚 التعليم', '📚 Education', '📚 Éducation'),
     copy(lang, '❤️ الصحة', '❤️ Health', '❤️ Santé'),
   ];
+  const aliasAvailabilityText = aliasAvailability === 'checking'
+    ? copy(lang, 'جارٍ فحص الاسم الرمزي...', 'Checking alias...', 'Vérification de l’alias...')
+    : aliasAvailability === 'available'
+      ? copy(lang, '✓ الاسم الرمزي متاح', '✓ Alias is available', '✓ Alias disponible')
+      : aliasAvailability === 'taken'
+        ? copy(lang, '✕ الاسم الرمزي مستخدم بالفعل', '✕ Alias is already taken', '✕ Alias déjà utilisé')
+        : aliasAvailability === 'invalid'
+          ? copy(lang, 'استخدم 3–20 حرفًا: إنجليزي، أرقام، أو _ فقط', 'Use 3–20 chars: letters, numbers, or _ only', 'Utilisez 3 à 20 caractères : lettres, chiffres ou _')
+          : copy(lang, 'سيتم الفحص تلقائيًا أثناء الكتابة', 'Availability is checked while typing', 'La disponibilité est vérifiée pendant la saisie');
+  const aliasAvailabilityClass = aliasAvailability === 'available'
+    ? 'text-emerald-200'
+    : aliasAvailability === 'taken' || aliasAvailability === 'invalid'
+      ? 'text-red-200'
+      : 'text-slate-400';
 
   const checkAlias = async () => {
     const checked = validateAlias(alias);
@@ -695,6 +727,11 @@ function Profile({ setPage }: { setPage: (p: Page) => void }) {
     if (!checked.ok) {
       setMessageTone('error');
       setMessage(checked.message);
+      return;
+    }
+    if (aliasAvailability === 'taken') {
+      setMessageTone('error');
+      setMessage(copy(lang, 'هذا الاسم الرمزي مستخدم بالفعل.', 'This alias is already taken.', 'Cet alias est déjà utilisé.'));
       return;
     }
     setSaving(true);
@@ -751,7 +788,7 @@ function Profile({ setPage }: { setPage: (p: Page) => void }) {
                 <p className="text-xs font-extrabold uppercase tracking-[.22em] text-emerald-200">AidiCore Passport</p>
                 <h3 dir="ltr" className="mt-2 text-3xl font-extrabold text-white">{aliasPreview}</h3>
                 <p className="mt-2 text-sm text-slate-300">
-                  {realNameVisible ? displayName || copy(lang, 'عضو موثق', 'Verified member', 'Membre vérifié') : copy(lang, 'هوية أثر آمنة باسم رمزي فقط', 'Safe impact identity in alias-only mode', 'Identité d’impact sécurisée en mode alias')}
+                  {realNameVisible ? displayName || copy(lang, 'عضو موثق', 'Verified member', 'Membre vérifié') : copy(lang, 'هوية أثر آمنة للمساهمة المجتمعية', 'Safe impact identity for community contribution', 'Identité d’impact sécurisée pour la contribution communautaire')}
                 </p>
               </div>
             </div>
@@ -782,7 +819,10 @@ function Profile({ setPage }: { setPage: (p: Page) => void }) {
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               <Metric title={copy(lang, 'مستوى الثقة', 'Trust Level', 'Niveau de confiance')} value={`${appUser?.trustScore ?? 0}`} />
               <Metric title={copy(lang, 'مساهمات معتمدة', 'Approved Contributions', 'Contributions approuvées')} value={String(appUser?.approvedActions ?? 0)} />
-              <Metric title={impactPassportEnabled ? copy(lang, 'جاهز للمساهمة', 'Ready to contribute', 'Prêt à contribuer') : copy(lang, 'وضع خاص', 'Private mode', 'Mode privé')} value={impactPassportEnabled ? copy(lang, 'نشط', 'Active', 'Actif') : copy(lang, 'خاص', 'Private', 'Privé')} />
+              <div className="card p-5 text-center">
+                <div className="text-sm font-bold text-slate-400">{copy(lang, 'الحالة', 'Status', 'Statut')}</div>
+                <div className="mt-2 text-xl font-extrabold leading-tight text-white">{impactPassportEnabled ? copy(lang, 'جاهز للمساهمة', 'Ready to contribute', 'Prêt à contribuer') : copy(lang, 'وضع خاص', 'Private mode', 'Mode privé')}</div>
+              </div>
             </div>
 
             <div className="mt-5 grid gap-3 rounded-[1.5rem] border border-white/10 bg-black/15 p-5">
@@ -799,11 +839,21 @@ function Profile({ setPage }: { setPage: (p: Page) => void }) {
               </div>
               <div className="border-t border-white/10 pt-3">
                 <p className="text-sm font-extrabold text-white">{copy(lang, 'رحلة الأثر', 'Impact journey', 'Parcours d’impact')}</p>
-                <div className="mt-3 grid gap-2 text-sm text-slate-400">
-                  <p>✓ {copy(lang, 'انضممت إلى AidiCore', 'Joined AidiCore', 'A rejoint AidiCore')}</p>
-                  <p>○ {copy(lang, 'أول مساهمة', 'First contribution', 'Première contribution')}</p>
-                  <p>○ {copy(lang, 'أول اعتماد', 'First approval', 'Première approbation')}</p>
-                  <p>○ {copy(lang, 'الوصول إلى مرحلة البرعم', 'Reach Sprout stage', 'Atteindre le niveau Pousse')}</p>
+                <div className="mt-4 space-y-0 text-sm">
+                  {[
+                    { done: true, label: copy(lang, 'انضممت إلى AidiCore', 'Joined AidiCore', 'A rejoint AidiCore') },
+                    { done: Number(appUser?.approvedActions || 0) > 0 || impactIndex > 0, label: copy(lang, 'أول مساهمة', 'First contribution', 'Première contribution') },
+                    { done: Number(appUser?.approvedActions || 0) > 0, label: copy(lang, 'أول اعتماد', 'First approval', 'Première approbation') },
+                    { done: Number(appUser?.approvedActions || 0) >= 10, label: copy(lang, 'الوصول إلى مرحلة البرعم', 'Reach Sprout stage', 'Atteindre le niveau Pousse') },
+                  ].map((item, index, items) => (
+                    <div key={item.label} className="grid grid-cols-[22px_1fr] gap-3">
+                      <div className="flex flex-col items-center">
+                        <span className={`mt-0.5 h-4 w-4 rounded-full border ${item.done ? 'border-emerald-300 bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,.35)]' : 'border-slate-500 bg-slate-800'}`} />
+                        {index < items.length - 1 && <span className={`h-7 w-px ${item.done ? 'bg-emerald-300/45' : 'bg-white/10'}`} />}
+                      </div>
+                      <div className={item.done ? 'font-semibold text-slate-200' : 'text-slate-500'}>{item.label}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -824,10 +874,8 @@ function Profile({ setPage }: { setPage: (p: Page) => void }) {
 
           <div className="grid gap-2">
             <span className="text-sm font-bold text-slate-200">{copy(lang, 'الاسم الرمزي الفريد', 'Unique alias', 'Alias unique')}</span>
-            <div className="flex gap-2">
-              <input dir="ltr" className="input" value={alias} onChange={(event) => setAlias(normalizeAlias(event.target.value))} placeholder="community_seed" required />
-              <button type="button" className="btn-soft min-w-[96px] shrink-0" onClick={checkAlias} disabled={checkingAlias}>{checkingAlias ? '…' : copy(lang, 'تحقق', 'Check', 'Vérifier')}</button>
-            </div>
+            <input dir="ltr" className="input" value={alias} onChange={(event) => setAlias(normalizeAlias(event.target.value))} placeholder="community_seed" required />
+            <p className={`text-xs font-bold ${aliasAvailabilityClass}`}>{aliasAvailabilityText}</p>
             <div className="flex flex-wrap gap-2">
               {suggestions.map((item) => (
                 <button key={item} dir="ltr" type="button" className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-slate-300 hover:border-emerald-300/40 hover:text-white" onClick={() => setAlias(item)}>
@@ -900,20 +948,20 @@ function RecordImpact({ setPage }: { setPage: (p: Page) => void }) {
 
   const categoryTemplate = (category: ImpactCategory) => {
     const templates: Record<ImpactCategory, { titleAr: string; titleEn: string; detailsAr: string; detailsEn: string; credits: number }> = {
-      community_service: { titleAr: 'مساهمة مجتمعية', titleEn: 'Community contribution', detailsAr: 'قدمت مساهمة مجتمعية آمنة ومختصرة دون مشاركة أي بيانات شخصية.', detailsEn: 'Provided a safe community contribution without sharing personal details.', credits: 0.2 },
-      blood_donation: { titleAr: 'استعداد للتبرع بالدم', titleEn: 'Blood donation readiness', detailsAr: 'سجلت استعدادًا أو مشاركة مرتبطة بالتبرع بالدم بطريقة آمنة.', detailsEn: 'Recorded safe blood donation readiness or participation.', credits: 0.5 },
-      visiting_patients: { titleAr: 'زيارة مريض', titleEn: 'Visited a patient', detailsAr: 'قمت بزيارة مريض وتقديم دعم معنوي دون مشاركة أي بيانات شخصية.', detailsEn: 'Visited a patient and provided emotional support without sharing personal details.', credits: 0.3 },
-      helping_seniors: { titleAr: 'مساعدة كبير سن', titleEn: 'Helped a senior', detailsAr: 'ساعدت شخصًا كبير السن في موقف يومي آمن دون ذكر معلوماته الخاصة.', detailsEn: 'Helped a senior person in a safe everyday situation without exposing personal information.', credits: 0.25 },
-      mental_support: { titleAr: 'دعم نفسي آمن', titleEn: 'Safe emotional support', detailsAr: 'قدمت دعمًا معنويًا أو نفسيًا عامًا بطريقة محترمة وآمنة.', detailsEn: 'Provided respectful and safe emotional support.', credits: 0.25 },
-      anti_bullying: { titleAr: 'موقف ضد التنمر', titleEn: 'Anti-bullying support', detailsAr: 'ساهمت في دعم موقف ضد التنمر أو تشجيع بيئة آمنة.', detailsEn: 'Supported an anti-bullying situation or encouraged a safer environment.', credits: 0.3 },
-      environment: { titleAr: 'مساهمة بيئية', titleEn: 'Environmental action', detailsAr: 'قمت بمساهمة بيئية بسيطة وآمنة ضمن المجتمع.', detailsEn: 'Completed a simple and safe environmental action in the community.', credits: 0.15 },
-      education: { titleAr: 'دعم تعليمي', titleEn: 'Education support', detailsAr: 'قدمت دعمًا تعليميًا أو مساعدة معرفية دون مشاركة بيانات شخصية.', detailsEn: 'Provided education support without sharing personal details.', credits: 0.25 },
-      volunteer_work: { titleAr: 'عمل تطوعي', titleEn: 'Volunteer work', detailsAr: 'شاركت في عمل تطوعي آمن يخدم المجتمع.', detailsEn: 'Participated in safe volunteer work serving the community.', credits: 0.3 },
-      emergency_help: { titleAr: 'مساعدة طارئة', titleEn: 'Emergency assistance', detailsAr: 'قدمت مساعدة طارئة آمنة دون ذكر عناوين دقيقة أو بيانات شخصية.', detailsEn: 'Provided safe emergency assistance without precise addresses or personal details.', credits: 0.5 },
-      food_support: { titleAr: 'دعم غذائي', titleEn: 'Food support', detailsAr: 'قدمت دعمًا غذائيًا أو ساعدت في إيصال طعام بطريقة آمنة ومحترمة.', detailsEn: 'Provided food support or helped deliver meals safely and respectfully.', credits: 0.25 },
-      disability_support: { titleAr: 'دعم أصحاب الهمم', titleEn: 'Disability support', detailsAr: 'قدمت مساعدة آمنة أو تسهيلًا لشخص من أصحاب الهمم دون كشف بياناته.', detailsEn: 'Provided safe assistance or accessibility support without exposing personal details.', credits: 0.35 },
-      animal_welfare: { titleAr: 'رعاية الحيوانات', titleEn: 'Animal welfare', detailsAr: 'ساهمت في رعاية حيوان أو دعم الرفق بالحيوان بطريقة آمنة.', detailsEn: 'Supported animal care or welfare in a safe and responsible way.', credits: 0.15 },
-      family_support: { titleAr: 'دعم الأسر', titleEn: 'Family support', detailsAr: 'قدمت دعمًا آمنًا لأسرة أو ساعدت في احتياج يومي دون مشاركة بيانات حساسة.', detailsEn: 'Provided safe family support or helped with an everyday need without sensitive details.', credits: 0.25 },
+      community_service: { titleAr: 'مساهمة مجتمعية', titleEn: 'Community contribution', detailsAr: 'قدمت مساهمة مجتمعية آمنة ومختصرة دون مشاركة أي بيانات شخصية.', detailsEn: 'Provided a safe community contribution without sharing personal details.', credits: 0.1 },
+      blood_donation: { titleAr: 'استعداد للتبرع بالدم', titleEn: 'Blood donation readiness', detailsAr: 'سجلت استعدادًا أو مشاركة مرتبطة بالتبرع بالدم بطريقة آمنة.', detailsEn: 'Recorded safe blood donation readiness or participation.', credits: 0.1 },
+      visiting_patients: { titleAr: 'زيارة مريض', titleEn: 'Visited a patient', detailsAr: 'قمت بزيارة مريض وتقديم دعم معنوي دون مشاركة أي بيانات شخصية.', detailsEn: 'Visited a patient and provided emotional support without sharing personal details.', credits: 0.1 },
+      helping_seniors: { titleAr: 'مساعدة كبير سن', titleEn: 'Helped a senior', detailsAr: 'ساعدت شخصًا كبير السن في موقف يومي آمن دون ذكر معلوماته الخاصة.', detailsEn: 'Helped a senior person in a safe everyday situation without exposing personal information.', credits: 0.1 },
+      mental_support: { titleAr: 'دعم نفسي آمن', titleEn: 'Safe emotional support', detailsAr: 'قدمت دعمًا معنويًا أو نفسيًا عامًا بطريقة محترمة وآمنة.', detailsEn: 'Provided respectful and safe emotional support.', credits: 0.1 },
+      anti_bullying: { titleAr: 'موقف ضد التنمر', titleEn: 'Anti-bullying support', detailsAr: 'ساهمت في دعم موقف ضد التنمر أو تشجيع بيئة آمنة.', detailsEn: 'Supported an anti-bullying situation or encouraged a safer environment.', credits: 0.1 },
+      environment: { titleAr: 'مساهمة بيئية', titleEn: 'Environmental action', detailsAr: 'قمت بمساهمة بيئية بسيطة وآمنة ضمن المجتمع.', detailsEn: 'Completed a simple and safe environmental action in the community.', credits: 0.1 },
+      education: { titleAr: 'دعم تعليمي', titleEn: 'Education support', detailsAr: 'قدمت دعمًا تعليميًا أو مساعدة معرفية دون مشاركة بيانات شخصية.', detailsEn: 'Provided education support without sharing personal details.', credits: 0.1 },
+      volunteer_work: { titleAr: 'عمل تطوعي', titleEn: 'Volunteer work', detailsAr: 'شاركت في عمل تطوعي آمن يخدم المجتمع.', detailsEn: 'Participated in safe volunteer work serving the community.', credits: 0.1 },
+      emergency_help: { titleAr: 'مساعدة طارئة', titleEn: 'Emergency assistance', detailsAr: 'قدمت مساعدة طارئة آمنة دون ذكر عناوين دقيقة أو بيانات شخصية.', detailsEn: 'Provided safe emergency assistance without precise addresses or personal details.', credits: 0.1 },
+      food_support: { titleAr: 'دعم غذائي', titleEn: 'Food support', detailsAr: 'قدمت دعمًا غذائيًا أو ساعدت في إيصال طعام بطريقة آمنة ومحترمة.', detailsEn: 'Provided food support or helped deliver meals safely and respectfully.', credits: 0.1 },
+      disability_support: { titleAr: 'دعم أصحاب الهمم', titleEn: 'Disability support', detailsAr: 'قدمت مساعدة آمنة أو تسهيلًا لشخص من أصحاب الهمم دون كشف بياناته.', detailsEn: 'Provided safe assistance or accessibility support without exposing personal details.', credits: 0.1 },
+      animal_welfare: { titleAr: 'رعاية الحيوانات', titleEn: 'Animal welfare', detailsAr: 'ساهمت في رعاية حيوان أو دعم الرفق بالحيوان بطريقة آمنة.', detailsEn: 'Supported animal care or welfare in a safe and responsible way.', credits: 0.1 },
+      family_support: { titleAr: 'دعم الأسر', titleEn: 'Family support', detailsAr: 'قدمت دعمًا آمنًا لأسرة أو ساعدت في احتياج يومي دون مشاركة بيانات حساسة.', detailsEn: 'Provided safe family support or helped with an everyday need without sensitive details.', credits: 0.1 },
     };
     return templates[category];
   };
@@ -1114,11 +1162,14 @@ function RecordImpact({ setPage }: { setPage: (p: Page) => void }) {
 function Admin() {
   const { isModerator, firebaseUser, appUser } = useAuth();
   const [tab, setTab] = useState<'overview' | 'records' | 'users' | 'logs' | 'settings'>('overview');
+  const [recordFilter, setRecordFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [records, setRecords] = useState<ImpactRecord[]>([]);
   const [allRecords, setAllRecords] = useState<ImpactRecord[]>([]);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const [actionMessage, setActionMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const { lang } = useLanguage();
 
@@ -1156,8 +1207,11 @@ function Admin() {
   ];
 
   const review = async (record: ImpactRecord, status: 'approved' | 'rejected') => {
-    const note = window.prompt(status === 'approved' ? 'Approval note' : 'Rejection note', status) || status;
+    const note = reviewNotes[record.id]?.trim() || (status === 'approved' ? 'Approved by admin review center.' : 'Rejected by admin review center.');
+    setActionMessage('');
     await reviewImpactRecord(record.id, status, firebaseUser!.uid, note, firebaseUser?.email || undefined);
+    setReviewNotes((prev) => ({ ...prev, [record.id]: '' }));
+    setActionMessage(status === 'approved' ? copy(lang, 'تم اعتماد الأثر.', 'Impact approved.', 'Impact approuvé.') : copy(lang, 'تم رفض الأثر.', 'Impact rejected.', 'Impact rejeté.'));
     await loadAdminData();
   };
 
@@ -1171,6 +1225,20 @@ function Admin() {
     await loadAdminData();
   };
 
+  const deleteUser = async (user: AppUser) => {
+    if (!firebaseUser || appUser?.role !== 'super_admin') return;
+    if (user.uid === firebaseUser.uid) {
+      setActionMessage(copy(lang, 'لا يمكن حذف حسابك الحالي من لوحة الإدارة.', 'You cannot delete your current account from the admin console.', 'Vous ne pouvez pas supprimer votre compte actuel depuis la console.'));
+      return;
+    }
+    const ok = window.confirm(copy(lang, `حذف ملف المستخدم ${getSafeDisplayName(user)}؟ لن يحذف هذا حساب Firebase Auth نفسه.`, `Delete ${getSafeDisplayName(user)} profile document? This will not delete the Firebase Auth account itself.`, `Supprimer le profil de ${getSafeDisplayName(user)} ? Le compte Firebase Auth ne sera pas supprimé.`));
+    if (!ok) return;
+    setActionMessage('');
+    await deleteUserProfile(user.uid, firebaseUser.uid, firebaseUser.email || undefined);
+    setActionMessage(copy(lang, 'تم حذف ملف المستخدم من قاعدة البيانات.', 'User profile document deleted from the database.', 'Le profil utilisateur a été supprimé de la base.'));
+    await loadAdminData();
+  };
+
   const saveAdminSettings = async () => {
     if (!settings || !firebaseUser) return;
     await saveSettings(settings, firebaseUser.uid, firebaseUser.email || undefined);
@@ -1179,6 +1247,19 @@ function Admin() {
 
   const approved = allRecords.filter((record) => record.status === 'approved').length;
   const rejected = allRecords.filter((record) => record.status === 'rejected').length;
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const approvedToday = allRecords.filter((record) => record.status === 'approved' && Number(record.reviewedAt || record.createdAt || 0) >= todayStart.getTime()).length;
+
+  const normalizedRecords = allRecords.map((record) => ({ ...record, status: (record.status || 'pending').toLowerCase() as ImpactRecord['status'] }));
+  const visibleRecords = normalizedRecords.filter((record) => recordFilter === 'all' || record.status === recordFilter);
+  const pendingCount = normalizedRecords.filter((record) => record.status === 'pending').length;
+
+  const statusLabel = (status: ImpactRecord['status']) => status === 'approved'
+    ? copy(lang, 'معتمد', 'Approved', 'Approuvé')
+    : status === 'rejected'
+      ? copy(lang, 'مرفوض', 'Rejected', 'Rejeté')
+      : copy(lang, 'قيد المراجعة', 'Pending', 'En attente');
 
   return (
     <Section>
@@ -1191,12 +1272,15 @@ function Admin() {
         ))}
       </div>
 
+      {actionMessage && <div className="mb-5 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-sm font-bold text-emerald-200">{actionMessage}</div>}
+
       {loading ? <div className="card p-6 text-slate-300">Loading admin data...</div> : (
         <>
           {tab === 'overview' && (
-            <div className="grid gap-4 md:grid-cols-4">
-              <Metric title={lang === 'ar' ? 'قيد المراجعة' : 'Pending Review'} value={String(records.length)} />
+            <div className="grid gap-4 md:grid-cols-5">
+              <Metric title={lang === 'ar' ? 'قيد المراجعة' : 'Pending Review'} value={String(pendingCount)} />
               <Metric title={copy(lang, 'معتمد', 'Approved', 'Approuvé')} value={String(approved)} />
+              <Metric title={lang === 'ar' ? 'اعتمد اليوم' : 'Approved Today'} value={String(approvedToday)} />
               <Metric title={lang === 'ar' ? 'مرفوض' : 'Rejected'} value={String(rejected)} />
               <Metric title={lang === 'ar' ? 'المستخدمون' : 'Users'} value={String(users.length)} />
             </div>
@@ -1204,20 +1288,51 @@ function Admin() {
 
           {tab === 'records' && (
             <div className="grid gap-4">
-              {records.length === 0 ? <div className="card p-6 text-slate-300">No pending records.</div> : records.map((record) => (
+              <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
+                <div className="text-sm font-bold text-slate-200">{copy(lang, 'فلترة سجلات الأثر', 'Filter impact records', 'Filtrer les contributions')}</div>
+                <div className="flex flex-wrap gap-2">
+                  {(['all', 'pending', 'approved', 'rejected'] as const).map((filter) => (
+                    <button key={filter} className={`${recordFilter === filter ? 'btn-primary' : 'btn-soft'} !px-4 !py-2`} onClick={() => setRecordFilter(filter)}>
+                      {filter === 'all' ? copy(lang, 'الكل', 'All', 'Tous') : statusLabel(filter)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {visibleRecords.length === 0 ? <div className="card p-6 text-slate-300">{copy(lang, 'لا توجد سجلات مطابقة للفلتر الحالي.', 'No records match the current filter.', 'Aucune contribution ne correspond au filtre actuel.')}</div> : visibleRecords.map((record) => (
                 <div key={record.id} className="card p-5">
                   <div className="flex flex-wrap justify-between gap-4">
                     <div>
                       <h3 className="font-bold">{record.title}</h3>
-                      <p className="text-sm text-slate-400">{record.city} · Fraud {record.fraudScore}/100 · {record.auditRequired ? 'Audit required' : 'Standard'} · {record.visibility}</p>
+                      <p className="text-sm text-slate-400">{record.city} · {categoryLabel(categories.find((item) => item.id === record.category) || categories[0], lang)} · +{Number(record.impactCredits || 0.1).toFixed(1)} · Fraud {record.fraudScore}/100 · {record.visibility}</p>
                     </div>
                     <div className="flex gap-2">
-                      <button className="btn-soft !py-2" onClick={() => review(record, 'rejected')}>Reject</button>
-                      <button className="btn-primary !py-2" onClick={() => review(record, 'approved')}>Approve</button>
+                      <span className={`rounded-full border px-3 py-2 text-xs font-bold ${record.status === 'approved' ? 'border-emerald-300/20 bg-emerald-500/10 text-emerald-100' : record.status === 'rejected' ? 'border-red-300/20 bg-red-500/10 text-red-100' : 'border-amber-300/20 bg-amber-500/10 text-amber-100'}`}>{statusLabel(record.status)}</span>
                     </div>
                   </div>
-                  <p className="mt-3 text-sm text-slate-300">{record.details}</p>
+                  <div className="mt-4 grid gap-3 rounded-2xl border border-white/10 bg-white/[.03] p-4">
+                    <p className="text-sm leading-6 text-slate-300">{record.details}</p>
+                    <div className="grid gap-2 text-xs text-slate-500 sm:grid-cols-5">
+                      <span>{copy(lang, 'المستخدم', 'User', 'Utilisateur')}: {record.userDisplayName || record.userId}</span>
+                      <span>{copy(lang, 'المدينة', 'City', 'Ville')}: {record.city || '—'}</span>
+                      <span>{copy(lang, 'الدولة', 'Country', 'Pays')}: {record.countryCode || '—'}</span>
+                      <span>{copy(lang, 'الثقة', 'Confidence', 'Confiance')}: {record.confidenceScore ?? '—'}</span>
+                      <span>{copy(lang, 'النقاط', 'Credits', 'Points')}: +{Number(record.impactCredits || 0.1).toFixed(1)}</span>
+                    </div>
+                  </div>
                   {record.auditNote && <p className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 p-3 text-sm text-amber-100"><ShieldAlert className="inline" size={16} /> {record.auditNote}</p>}
+                  <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+                    <textarea
+                      className="input min-h-[76px]"
+                      value={reviewNotes[record.id] || ''}
+                      placeholder={copy(lang, 'ملاحظات المراجعة للإدارة...', 'Admin moderation note...', 'Note de modération...')}
+                      onChange={(event) => setReviewNotes((prev) => ({ ...prev, [record.id]: event.target.value }))}
+                    />
+                    <div className="flex items-center gap-2">
+                      <button className="btn-soft !py-2" onClick={() => review(record, 'rejected')}>{copy(lang, 'رفض', 'Reject', 'Rejeter')}</button>
+                      <button className="btn-primary !py-2" onClick={() => review(record, 'approved')}>{copy(lang, 'اعتماد', 'Approve', 'Approuver')}</button>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1229,7 +1344,8 @@ function Admin() {
                 <div key={user.uid} className="card flex flex-wrap items-center justify-between gap-4 p-5">
                   <div>
                     <div className="font-bold text-white">{getSafeDisplayName(user)}</div>
-                    <div className="text-sm text-slate-400">{user.email} · {user.role} · {user.status}</div>
+                    <div className="text-sm text-slate-400">{user.email} · {user.role} · {user.status} · {copy(lang, 'مؤشر', 'Index', 'Indice')} {Number(user.impactCredits ?? user.impactScore ?? 0).toFixed(1)}</div>
+                    <div className="mt-1 text-xs text-slate-600">UID: {user.uid}</div>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <select className="input !w-auto !py-2" value={user.role} onChange={(event) => updateRole(user.uid, event.target.value as UserRole)} disabled={appUser?.role !== 'super_admin' && user.role === 'super_admin'}>
@@ -1242,6 +1358,11 @@ function Admin() {
                       <option value="active">active</option>
                       <option value="suspended">suspended</option>
                     </select>
+                    {appUser?.role === 'super_admin' && user.uid !== firebaseUser?.uid && (
+                      <button className="btn-soft !py-2 text-red-200 hover:border-red-300/30" onClick={() => deleteUser(user)} title={copy(lang, 'حذف ملف المستخدم', 'Delete user profile', 'Supprimer le profil')}>
+                        <Trash2 size={16} /> {copy(lang, 'حذف', 'Delete', 'Supprimer')}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

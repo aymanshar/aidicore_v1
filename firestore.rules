@@ -51,7 +51,7 @@ service cloud.firestore {
         || (isModerator()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approvedActions', 'impactScore', 'impactCredits', 'trustScore', 'growthStage']))
       );
-      allow delete: if false;
+      allow delete: if isSuperAdmin() && request.auth.uid != uid;
     }
 
     match /aliases/{alias} {
@@ -67,9 +67,10 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['uid', 'alias', 'updatedAt'])
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.alias == alias;
-      allow delete: if signedIn()
+      allow delete: if (signedIn()
         && validAlias(alias)
-        && resource.data.uid == request.auth.uid;
+        && resource.data.uid == request.auth.uid)
+        || isSuperAdmin();
     }
 
     match /impact_records/{id} {

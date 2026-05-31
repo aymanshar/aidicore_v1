@@ -23,20 +23,20 @@ const DEMO_USERS_KEY = 'aidicore_demo_users';
 const DEMO_USER_KEY = 'aidicore_demo_user';
 
 const CATEGORY_CREDITS: Record<ImpactCategory, number> = {
-  community_service: 0.2,
-  blood_donation: 0.5,
-  visiting_patients: 0.3,
-  helping_seniors: 0.25,
-  mental_support: 0.25,
-  anti_bullying: 0.3,
-  environment: 0.15,
-  education: 0.25,
-  volunteer_work: 0.3,
-  emergency_help: 0.5,
-  food_support: 0.25,
-  disability_support: 0.35,
-  animal_welfare: 0.15,
-  family_support: 0.25,
+  community_service: 0.1,
+  blood_donation: 0.1,
+  visiting_patients: 0.1,
+  helping_seniors: 0.1,
+  mental_support: 0.1,
+  anti_bullying: 0.1,
+  environment: 0.1,
+  education: 0.1,
+  volunteer_work: 0.1,
+  emergency_help: 0.1,
+  food_support: 0.1,
+  disability_support: 0.1,
+  animal_welfare: 0.1,
+  family_support: 0.1,
 };
 
 function getImpactCredits(category: ImpactCategory, duplicate: boolean) {

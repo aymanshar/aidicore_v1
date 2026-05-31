@@ -244,3 +244,10 @@ Additional contribution categories were added: food support, disability support,
 
 ## V1.5.4 Note
 The remaining Passport save issue was caused by Firestore permissions around the new alias index and user passport fields. The app now uses the alias index when rules are deployed, and falls back to saving the user passport document with a clear rules-deployment message if the backend rules are outdated.
+
+
+## V1.6 Admin Review Center Decision
+
+AidiCore now treats admin review as a core product workflow. New impact records remain pending until reviewed. Only approved public records should appear in public impact pages. Admin review includes moderation notes and audit log tracking.
+
+Passport UX should remain alias-first, privacy-first, and non-social. Alias availability is checked automatically while typing; no separate manual check button is needed.

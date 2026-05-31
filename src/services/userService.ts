@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, limit, orderBy, query, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, limit, orderBy, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../lib/firebase';
 import type { AppUser, UserRole, UserStatus } from '../types';
 import { createAuditLog } from './auditService';
@@ -61,4 +61,19 @@ export async function updateUserStatus(uid: string, status: UserStatus, actorId:
     await updateDoc(doc(db, 'users', uid), { status });
   }
   await createAuditLog({ actorId, actorEmail, action: 'update_user_status', targetType: 'user', targetId: uid, message: `Updated status to ${status}` });
+}
+
+
+export async function deleteUserProfile(uid: string, actorId: string, actorEmail?: string) {
+  if (!isFirebaseConfigured) {
+    const users = readDemoUsers().filter((user) => user.uid !== uid);
+    writeDemoUsers(users);
+  } else {
+    const batch = writeBatch(db);
+    batch.delete(doc(db, 'users', uid));
+    const aliasSnap = await getDocs(query(collection(db, 'aliases'), where('uid', '==', uid))).catch(() => null);
+    aliasSnap?.docs.forEach((item) => batch.delete(item.ref));
+    await batch.commit();
+  }
+  await createAuditLog({ actorId, actorEmail, action: 'delete_user_profile', targetType: 'user', targetId: uid, message: 'Deleted user profile document from Firestore' });
 }

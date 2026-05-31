@@ -202,3 +202,21 @@ This version converts the previous profile foundation into a stronger privacy-fi
 - Hide contribution categories toggle.
 - Growth Stage calculator: Seed, Sprout, Plant, Tree, Forest, Oasis.
 - Firestore rules updated for Passport safety.
+
+
+## Current Release
+
+V1.6.0 — Admin Review Center + Passport Stable Polish.
+
+- Impact Passport alias UX is automatic and privacy-first.
+- Admins/moderators can review pending impact records, approve/reject, add moderation notes, and inspect audit logs.
+
+
+## V1.6.1 — Admin Control & Impact Credit Hotfix
+
+- Standardized impact credits to 0.1 per approved record across all categories.
+- Improved Admin Impact Records tab to show all records with filters for all/pending/approved/rejected.
+- Added user profile delete action for super admins with audit logging.
+- Added UID and impact index visibility in Admin Users for debugging duplicate user documents.
+- Updated Firestore rules to allow super admin user profile deletion and alias cleanup.
+- Clarified that deleting a user profile from Firestore does not delete the Firebase Auth account.

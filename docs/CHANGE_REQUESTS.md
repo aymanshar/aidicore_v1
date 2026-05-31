@@ -305,3 +305,29 @@ User reported that `Missing or insufficient permissions` still appeared when sav
 - Resolve remaining `Missing or insufficient permissions` error on Impact Passport save.
 - Deploy updated Firestore rules after this package is uploaded:
   `firebase deploy --only firestore:rules`
+
+
+---
+
+## 2026-05-31 — Start Admin Review Center and finish Passport polish
+
+### Requested By
+Ayman
+
+### Request
+Start V1.6 Admin Review Center while also applying the remaining Impact Passport UI fixes.
+
+### Decision
+Approved.
+
+### Implemented
+- Removed separate alias check button.
+- Added automatic alias availability status.
+- Fixed Passport status card text wrapping.
+- Added visual Impact Journey timeline.
+- Improved Admin Review Center pending queue with moderation note input.
+- Added approve/reject actions and admin success messages.
+- Added Approved Today metric.
+
+### Status
+Implemented in V1.6.0.

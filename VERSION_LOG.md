@@ -1,5 +1,31 @@
 # AidiCore Version Log
 
+## V1.6.0 - Admin Review Center + Passport Stable Polish
+
+### Added
+- Added stronger Admin Review Center workflow for pending impact records.
+- Added moderation note input directly inside each pending record card.
+- Added admin action confirmation messages after approval/rejection.
+- Added Approved Today metric to admin overview.
+- Added automatic alias availability feedback while typing.
+
+### Changed
+- Removed the separate alias check button from Impact Passport UX.
+- Improved Impact Passport hero text and status card to avoid broken large text.
+- Converted Impact Journey into a real visual timeline with completed and locked steps.
+- Updated footer and package version to `1.6.0`.
+
+### Security & Privacy
+- Public impact remains visible only after approval.
+- Admin review actions continue writing audit logs.
+- Passport still hides emails/internal identifiers from the user-facing passport.
+
+### Build Verification
+- `npm install` completed successfully.
+- `npm run build` completed successfully.
+- Vite reported only the existing large bundle warning; no TypeScript errors.
+
+
 ## V1.5.1 - Passport Polish & Data Safety
 
 ### Added
@@ -305,3 +331,13 @@
 - Strengthened Firestore rules for user-owned passport updates and alias index writes.
 - Added a clear deployment message when Firestore rules are outdated.
 - Improved Passport status metric to avoid Arabic text wrapping inside the card.
+
+
+## V1.6.1 — Admin Control & Impact Credit Hotfix
+
+- Standardized impact credits to 0.1 per approved record across all categories.
+- Improved Admin Impact Records tab to show all records with filters for all/pending/approved/rejected.
+- Added user profile delete action for super admins with audit logging.
+- Added UID and impact index visibility in Admin Users for debugging duplicate user documents.
+- Updated Firestore rules to allow super admin user profile deletion and alias cleanup.
+- Clarified that deleting a user profile from Firestore does not delete the Firebase Auth account.
