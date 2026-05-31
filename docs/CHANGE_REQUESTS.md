@@ -157,3 +157,40 @@ Approved as V1.2.2 hotfix.
 ### Status
 Implemented in V1.2.2.
 
+
+
+---
+
+## 2026-05-31 — Build real Impact Submission
+
+### Requested By
+Ayman
+
+### Request
+Proceed to the next real project step after deployment and authentication: make AidiCore record real community impact, not just show a landing page.
+
+### Decision
+Approved.
+
+### Implementation
+- Added real impact submission workflow connected to Firestore.
+- Added live community metrics.
+- Added form-level sensitive-data warning and safer validation.
+
+### Status
+Implemented in V1.3.0.
+
+
+## 2026-05-31 - Remove Demo Data and Approve Impact Economy
+
+### Requested by
+Ayman
+
+### Decision
+Remove static demo data from public pages and switch the interface to live Firestore data. Approve the Impact Credits, duplicate prevention, alias/profile, Impact Passport, growth stages, and endorsement concepts for upcoming versions.
+
+### Reason
+AidiCore is now live and connected to Firebase, so demo numbers and fake examples should no longer appear. The product should encourage authentic, diverse, non-repetitive impact instead of point farming.
+
+### Status
+Approved and partially implemented in V1.4.0.

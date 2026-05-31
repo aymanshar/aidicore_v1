@@ -1,4 +1,56 @@
+# AidiCore Version Log
+
+## V1.4.0 - Live Data & Impact Credits Foundation
+
+### Added
+- Live homepage statistics from Firestore instead of demo marketing numbers.
+- Impact Credits foundation using small decimal values such as 0.1, 0.2, 0.3, and 0.5.
+- Duplicate-aware scoring fields: duplicateLevel, confidenceScore, and impactCredits.
+- User trust fields prepared for the next stages: trustScore, alias, and growthStage.
+- Guided impact recording flow with category cards and safe templates to reduce manual typing.
+- City/country default persistence using the last selected city and country.
+- Location suggestion button that keeps privacy at city-level only.
+
+### Changed
+- Removed static demo statistics from the homepage.
+- Removed fake public feed example from the homepage and replaced it with live status messaging.
+- Replaced large score increments with small Impact Credit increments.
+- Record Impact form now starts from guided templates rather than blank manual fields.
+- Dashboard wording now uses Impact Credits / رصيد الأثر instead of large score framing.
+
+### Security & Product Decisions
+- No leaderboard.
+- No large points economy.
+- Duplicate records should not create repeated credit.
+- Same action should be treated as a habit/group, not repeated individual achievements.
+- Impact Passport, alias, avatar, growth stages, one-time share links, and endorsement engine are approved for later versions.
+
 # VERSION LOG
+
+## V1.3.0 — Impact Engine
+
+### Added
+- Added live Community Impact statistics from Firestore records.
+- Added public approved-impact feed metrics.
+- Added stronger real impact submission workflow connected to `impact_records`.
+- Added safer form validation for title, details, city, and country code.
+- Added sensitive-data warning for phone numbers, IDs, precise addresses, and similar risky text.
+- Added post-submit confirmation flow with record ID and navigation back to Dashboard.
+
+### Changed
+- Updated Community Impact page to use real data instead of static placeholder statistics.
+- Improved Record Impact page wording to clarify that records are pending until admin review.
+- Updated package version to `1.3.0`.
+- Updated Footer version label to `1.3.0 Impact Engine`.
+
+### Fixed
+- Reduced risk of users submitting sensitive personal data by blocking suspicious details at the form level.
+- Improved empty states for public impact records.
+
+### Notes
+- V1.3.0 is the first release focused on AidiCore's actual product core: recording impact.
+- Admin approval/rejection already exists as a foundation but will be hardened further in V1.4.0.
+- Some Firebase queries may require indexes as real data grows; create indexes from Firebase console links if prompted.
 
 ## V1.2.2 — Signup Firestore Hotfix
 

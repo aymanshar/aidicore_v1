@@ -7,7 +7,7 @@ AidiCore is rebuilt from scratch as a React + TypeScript + Firebase product, usi
 
 ## Current Version
 
-**V1.2.2 — Signup Firestore Hotfix**
+**V1.3.0 — Impact Engine**
 
 This version fixes the first real Firebase signup issue found after enabling Google Login and Email Verification. User documents now avoid unsupported `undefined` values in Firestore, especially for missing avatar URLs.
 
@@ -156,3 +156,8 @@ Recommended production providers:
 - Email/Password: enabled, verification required before access.
 
 After creating an email account, users must confirm the verification email before signing in.
+
+
+## V1.4.0 Notes
+
+AidiCore now removes homepage demo statistics and uses live Firestore-driven community metrics. The impact economy has moved toward small decimal Impact Credits and duplicate-aware scoring fields. The Record Impact flow is now guided with category cards and safe templates to reduce manual user input.

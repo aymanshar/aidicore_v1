@@ -88,3 +88,40 @@
 - Real Admin Console backed by Firestore permissions.
 - Admin role bootstrap process.
 - Real impact review workflow.
+
+
+## Completed in V1.3.0
+
+- Live Community Impact metrics.
+- Real impact record submission to Firestore.
+- Safer form validation and sensitive-data warnings.
+- Improved pending-review confirmation workflow.
+
+## Next Planned — V1.4.0
+
+- Harden Admin approval/rejection workflow.
+- Add first-admin bootstrap documentation.
+- Add notifications for approved/rejected impact records.
+- Improve Firestore security rules for moderator/admin operations.
+
+
+## Approved Future Roadmap Additions
+
+### V1.5.0 - Impact Identity Layer
+- Unique alias / nickname system.
+- Non-personal avatar system.
+- Growth stages: Seed, Sprout, Plant, Tree, Forest, Oasis.
+- Impact Passport profile that is private by default.
+- Share links that can expire or be viewed once.
+
+### V1.6.0 - Trust & Endorsement Engine
+- Registered-user confirmation for impact records.
+- Confirmation increases trust/confidence, not raw impact credits.
+- Anti-abuse limits for mutual confirmations.
+- Trust score weighting based on user growth stage and review history.
+
+### V1.7.0 - Smart Duplicate & Habit Engine
+- Treat repeated same-day actions as grouped habits.
+- Diminishing returns for repeated categories.
+- Similarity detection for titles/descriptions.
+- Possible duplicate records go to audit instead of generating extra credit.

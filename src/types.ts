@@ -12,7 +12,11 @@ export interface AppUser {
   role: UserRole;
   avatarUrl?: string | null;
   impactScore: number;
+  impactCredits?: number;
+  trustScore?: number;
   approvedActions: number;
+  alias?: string;
+  growthStage?: 'seed' | 'sprout' | 'plant' | 'tree' | 'forest' | 'oasis';
   createdAt: number;
   lastLogin: number;
   status: UserStatus;
@@ -34,6 +38,9 @@ export interface ImpactRecord {
   visibility: Visibility;
   status: ImpactStatus;
   fraudScore: number;
+  impactCredits: number;
+  duplicateLevel: number;
+  confidenceScore: number;
   auditRequired: boolean;
   auditStatus: 'not_required' | 'queued' | 'reviewed';
   auditNote?: string;
@@ -42,6 +49,27 @@ export interface ImpactRecord {
   createdAt: number;
   reviewedAt?: number;
   reviewedBy?: string;
+}
+
+export interface CommunityImpactStats {
+  totalRecords: number;
+  approvedRecords: number;
+  pendingRecords: number;
+  citiesCount: number;
+  categoriesCount: number;
+  publicRecords: number;
+  safeReviewRate: number;
+  totalImpactCredits: number;
+}
+
+export interface NotificationItem {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'impact_submitted' | 'impact_approved' | 'impact_rejected' | 'system';
+  read: boolean;
+  createdAt: number;
 }
 
 export type AuditAction =

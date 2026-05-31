@@ -30,11 +30,12 @@ import {
   listPendingImpactRecords,
   listPublicImpactRecords,
   reviewImpactRecord,
+  getCommunityImpactStats,
 } from './services/impactService';
 import { listAuditLogs } from './services/auditService';
 import { getSettings, saveSettings } from './services/settingsService';
 import { listUsers, updateUserRole, updateUserStatus } from './services/userService';
-import type { AppSettings, AppUser, AuditLog, ImpactCategory, ImpactRecord, UserRole, UserStatus, Visibility } from './types';
+import type { AppSettings, AppUser, AuditLog, CommunityImpactStats, ImpactCategory, ImpactRecord, UserRole, UserStatus, Visibility } from './types';
 
 export type Page =
   | 'home'
@@ -89,6 +90,17 @@ function Section({ children, className = '' }: { children: ReactNode; className?
 function Home({ setPage }: { setPage: (p: Page) => void }) {
   const { t, lang } = useLanguage();
   const featuredCategories = categories.slice(0, 6);
+  const [stats, setStats] = useState<CommunityImpactStats | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    getCommunityImpactStats()
+      .then((items) => mounted && setStats(items))
+      .catch(() => mounted && setStats(null));
+    return () => { mounted = false; };
+  }, []);
+
+  const safeReviewText = stats ? `${stats.safeReviewRate}%` : '—';
 
   return (
     <>
@@ -132,17 +144,17 @@ function Home({ setPage }: { setPage: (p: Page) => void }) {
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Metric title={lang === 'ar' ? 'أثر مسجل' : 'Actions Recorded'} value="12,458" />
-              <Metric title={lang === 'ar' ? 'مدينة' : 'Cities'} value="41" />
-              <Metric title={lang === 'ar' ? 'مجالات خدمة' : 'Categories'} value="18" />
-              <Metric title={lang === 'ar' ? 'مراجعة آمنة' : 'Safe Review'} value="97%" />
+              <Metric title={lang === 'ar' ? 'أثر مسجل' : 'Actions Recorded'} value={stats ? String(stats.totalRecords) : '—'} />
+              <Metric title={lang === 'ar' ? 'مدينة' : 'Cities'} value={stats ? String(stats.citiesCount) : '—'} />
+              <Metric title={lang === 'ar' ? 'مجالات خدمة' : 'Categories'} value={stats ? String(stats.categoriesCount) : '—'} />
+              <Metric title={lang === 'ar' ? 'مراجعة آمنة' : 'Safe Review'} value={safeReviewText} />
             </div>
             <div className="mt-5 rounded-3xl border border-white/10 bg-white/5 p-5">
-              <p className="text-sm font-semibold text-white">{lang === 'ar' ? 'مثال عرض عام' : 'Anonymous community feed example'}</p>
+              <p className="text-sm font-semibold text-white">{lang === 'ar' ? 'حالة المجتمع الآن' : 'Current community status'}</p>
               <p className="mt-2 text-sm leading-6 text-slate-300">
-                {lang === 'ar'
-                  ? 'شخص في أبوظبي ساعد كبير سن اليوم — بدون كشف أي بيانات شخصية.'
-                  : 'Someone in Abu Dhabi helped a senior today — without exposing personal details.'}
+                {stats && stats.approvedRecords > 0
+                  ? (lang === 'ar' ? `${stats.approvedRecords} أثر معتمد حتى الآن بدون كشف بيانات شخصية.` : `${stats.approvedRecords} approved impact records so far without exposing personal details.`)
+                  : (lang === 'ar' ? 'لا توجد آثار معتمدة بعد. ستظهر البيانات الحية هنا بعد المراجعة.' : 'No approved impact records yet. Live data will appear here after review.')}
               </p>
             </div>
           </motion.div>
@@ -260,12 +272,33 @@ function Actions({ setPage }: { setPage: (p: Page) => void }) {
 
 function Impact() {
   const { lang } = useLanguage();
+  const [stats, setStats] = useState<CommunityImpactStats | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    getCommunityImpactStats()
+      .then((items) => mounted && setStats(items))
+      .catch(() => mounted && setStats(null));
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   return (
     <Section>
       <Title
         title={lang === 'ar' ? 'الأثر المجتمعي' : 'Community Impact'}
         text={lang === 'ar' ? 'صفحة عامة مجهولة الهوية لا تشبه شبكات التواصل ولا تعرض بيانات شخصية.' : 'An anonymous-first public impact view, not a social feed.'}
       />
+
+      <div className="mb-8 grid gap-4 md:grid-cols-5">
+        <Metric title={lang === 'ar' ? 'إجمالي السجلات' : 'Total records'} value={stats ? String(stats.totalRecords) : '…'} />
+        <Metric title={lang === 'ar' ? 'معتمد' : 'Approved'} value={stats ? String(stats.approvedRecords) : '…'} />
+        <Metric title={lang === 'ar' ? 'قيد المراجعة' : 'Pending'} value={stats ? String(stats.pendingRecords) : '…'} />
+        <Metric title={lang === 'ar' ? 'مدن' : 'Cities'} value={stats ? String(stats.citiesCount) : '…'} />
+        <Metric title={lang === 'ar' ? 'رصيد الأثر' : 'Impact credits'} value={stats ? String(stats.totalImpactCredits) : '…'} />
+      </div>
+
       <div className="mb-8 grid gap-4 md:grid-cols-3">
         <Step icon={<HeartHandshake />} title={lang === 'ar' ? 'مجهول افتراضيًا' : 'Anonymous by default'} text={lang === 'ar' ? 'لا يظهر اسم المستخدم إلا باختياره.' : 'Names are only shown when the user chooses public attribution.'} />
         <Step icon={<ClipboardCheck />} title={lang === 'ar' ? 'اعتماد قبل الظهور' : 'Reviewed before visibility'} text={lang === 'ar' ? 'لا يظهر الأثر كمعتمد قبل المراجعة.' : 'Impact is not treated as approved before review.'} />
@@ -296,9 +329,15 @@ function PublicFeed() {
 
   return (
     <div className="grid gap-4">
+      <div className="flex items-center justify-between gap-4">
+        <h3 className="text-2xl font-extrabold text-white">{lang === 'ar' ? 'أثر عام معتمد' : 'Approved public impact'}</h3>
+        <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200">
+          {records.length} {lang === 'ar' ? 'سجل' : 'records'}
+        </span>
+      </div>
       {records.length === 0 ? (
         <div className="card p-6 text-slate-300">
-          {lang === 'ar' ? 'لا توجد سجلات عامة بعد. بعد إعداد Firebase واعتماد الأفعال ستظهر هنا.' : 'No public records yet. After Firebase setup and approval, records will appear here.'}
+          {lang === 'ar' ? 'لا توجد سجلات عامة معتمدة بعد. بعد مراجعة الإدارة ستظهر السجلات العامة هنا.' : 'No approved public records yet. After admin review, public records will appear here.'}
         </div>
       ) : (
         records.map((record) => <ImpactCard key={record.id} record={record} />)
@@ -522,7 +561,7 @@ function Dashboard({ setPage }: { setPage: (p: Page) => void }) {
     <Section>
       <Title title={lang === 'ar' ? 'لوحة الأثر' : 'Impact Dashboard'} text={`${lang === 'ar' ? 'مرحبًا' : 'Welcome'}, ${appUser?.displayName || firebaseUser.email}`} />
       <div className="grid gap-4 md:grid-cols-4">
-        <Metric title="Impact Score" value={String(appUser?.impactScore || approved * 10)} />
+        <Metric title={lang === 'ar' ? 'رصيد الأثر' : 'Impact credits'} value={String(appUser?.impactScore ?? 0)} />
         <Metric title={lang === 'ar' ? 'معتمد' : 'Approved'} value={loading ? '…' : String(approved)} />
         <Metric title={lang === 'ar' ? 'قيد المراجعة' : 'Pending'} value={loading ? '…' : String(pending)} />
         <Metric title={lang === 'ar' ? 'مجالات' : 'Categories'} value={loading ? '…' : String(categoriesCount)} />
@@ -609,55 +648,210 @@ function RequireLogin({ setPage }: { setPage: (p: Page) => void }) {
 function RecordImpact({ setPage }: { setPage: (p: Page) => void }) {
   const { firebaseUser, appUser } = useAuth();
   const { lang } = useLanguage();
-  const [form, setForm] = useState({
-    title: '',
-    category: 'community_service' as ImpactCategory,
-    details: '',
+
+  const categoryTemplate = (category: ImpactCategory) => {
+    const templates: Record<ImpactCategory, { titleAr: string; titleEn: string; detailsAr: string; detailsEn: string; credits: number }> = {
+      community_service: { titleAr: 'مساهمة مجتمعية', titleEn: 'Community contribution', detailsAr: 'قدمت مساهمة مجتمعية آمنة ومختصرة دون مشاركة أي بيانات شخصية.', detailsEn: 'Provided a safe community contribution without sharing personal details.', credits: 0.2 },
+      blood_donation: { titleAr: 'استعداد للتبرع بالدم', titleEn: 'Blood donation readiness', detailsAr: 'سجلت استعدادًا أو مشاركة مرتبطة بالتبرع بالدم بطريقة آمنة.', detailsEn: 'Recorded safe blood donation readiness or participation.', credits: 0.5 },
+      visiting_patients: { titleAr: 'زيارة مريض', titleEn: 'Visited a patient', detailsAr: 'قمت بزيارة مريض وتقديم دعم معنوي دون مشاركة أي بيانات شخصية.', detailsEn: 'Visited a patient and provided emotional support without sharing personal details.', credits: 0.3 },
+      helping_seniors: { titleAr: 'مساعدة كبير سن', titleEn: 'Helped a senior', detailsAr: 'ساعدت شخصًا كبير السن في موقف يومي آمن دون ذكر معلوماته الخاصة.', detailsEn: 'Helped a senior person in a safe everyday situation without exposing personal information.', credits: 0.25 },
+      mental_support: { titleAr: 'دعم نفسي آمن', titleEn: 'Safe emotional support', detailsAr: 'قدمت دعمًا معنويًا أو نفسيًا عامًا بطريقة محترمة وآمنة.', detailsEn: 'Provided respectful and safe emotional support.', credits: 0.25 },
+      anti_bullying: { titleAr: 'موقف ضد التنمر', titleEn: 'Anti-bullying support', detailsAr: 'ساهمت في دعم موقف ضد التنمر أو تشجيع بيئة آمنة.', detailsEn: 'Supported an anti-bullying situation or encouraged a safer environment.', credits: 0.3 },
+      environment: { titleAr: 'مساهمة بيئية', titleEn: 'Environmental action', detailsAr: 'قمت بمساهمة بيئية بسيطة وآمنة ضمن المجتمع.', detailsEn: 'Completed a simple and safe environmental action in the community.', credits: 0.15 },
+      education: { titleAr: 'دعم تعليمي', titleEn: 'Education support', detailsAr: 'قدمت دعمًا تعليميًا أو مساعدة معرفية دون مشاركة بيانات شخصية.', detailsEn: 'Provided education support without sharing personal details.', credits: 0.25 },
+      volunteer_work: { titleAr: 'عمل تطوعي', titleEn: 'Volunteer work', detailsAr: 'شاركت في عمل تطوعي آمن يخدم المجتمع.', detailsEn: 'Participated in safe volunteer work serving the community.', credits: 0.3 },
+      emergency_help: { titleAr: 'مساعدة طارئة', titleEn: 'Emergency assistance', detailsAr: 'قدمت مساعدة طارئة آمنة دون ذكر عناوين دقيقة أو بيانات شخصية.', detailsEn: 'Provided safe emergency assistance without precise addresses or personal details.', credits: 0.5 },
+    };
+    return templates[category];
+  };
+
+  const cityOptions = ['Abu Dhabi', 'Dubai', 'Sharjah', 'Ajman', 'Ras Al Khaimah', 'Fujairah', 'Umm Al Quwain', 'Cairo', 'Riyadh', 'Jeddah', 'Doha', 'Dammam'];
+  const lastCity = typeof localStorage !== 'undefined' ? localStorage.getItem('aidicore_last_city') || 'Abu Dhabi' : 'Abu Dhabi';
+  const lastCountry = typeof localStorage !== 'undefined' ? localStorage.getItem('aidicore_last_country') || 'AE' : 'AE';
+  const defaultCategory: ImpactCategory = 'community_service';
+  const initialTemplate = categoryTemplate(defaultCategory);
+
+  const [form, setForm] = useState<{ title: string; category: ImpactCategory; details: string; occurredAt: string; countryCode: string; city: string; visibility: Visibility }>({
+    title: lang === 'ar' ? initialTemplate.titleAr : initialTemplate.titleEn,
+    category: defaultCategory,
+    details: lang === 'ar' ? initialTemplate.detailsAr : initialTemplate.detailsEn,
     occurredAt: new Date().toISOString().slice(0, 10),
-    countryCode: 'AE',
-    city: '',
+    countryCode: lastCountry,
+    city: lastCity,
     visibility: 'anonymous_public' as Visibility,
   });
   const [done, setDone] = useState(false);
+  const [createdId, setCreatedId] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [locationNotice, setLocationNotice] = useState('');
 
   if (!firebaseUser) return <RequireLogin setPage={setPage} />;
 
+  const selectedTemplate = categoryTemplate(form.category);
+  const looksSensitive = /\b(\+?\d[\d\s-]{6,}|passport|emirates id|national id|رقم الهوية|جواز|هاتف|موبايل|عنوان)\b/i.test(form.details);
+
+  const chooseCategory = (category: ImpactCategory) => {
+    const template = categoryTemplate(category);
+    setForm((prev) => ({
+      ...prev,
+      category,
+      title: lang === 'ar' ? template.titleAr : template.titleEn,
+      details: lang === 'ar' ? template.detailsAr : template.detailsEn,
+    }));
+  };
+
+  const detectLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationNotice(lang === 'ar' ? 'المتصفح لا يدعم تحديد الموقع. اختر المدينة يدويًا.' : 'Geolocation is not supported. Select the city manually.');
+      return;
+    }
+    setLocationNotice(lang === 'ar' ? 'تم طلب الموقع. نحفظ المدينة فقط ولا نحفظ عنوانًا دقيقًا.' : 'Location requested. AidiCore stores city-level context only, not a precise address.');
+    navigator.geolocation.getCurrentPosition(
+      () => setLocationNotice(lang === 'ar' ? 'تم السماح بالموقع. اختر أقرب مدينة من القائمة لحماية الخصوصية.' : 'Location allowed. Select the nearest city to protect privacy.'),
+      () => setLocationNotice(lang === 'ar' ? 'لم يتم السماح بالموقع. اختر المدينة يدويًا.' : 'Location was not allowed. Select the city manually.'),
+      { enableHighAccuracy: false, timeout: 6000 },
+    );
+  };
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    await createImpactRecord({
-      ...form,
-      userId: firebaseUser.uid,
-      userDisplayName: appUser?.displayName || firebaseUser.email || 'User',
-    });
-    setDone(true);
+    setError('');
+    if (form.title.trim().length < 4) {
+      setError(lang === 'ar' ? 'اكتب عنوانًا أوضح للأثر.' : 'Please write a clearer impact title.');
+      return;
+    }
+    if (form.details.trim().length < 20) {
+      setError(lang === 'ar' ? 'اكتب تفاصيل آمنة من 20 حرفًا على الأقل.' : 'Write at least 20 characters of safe details.');
+      return;
+    }
+    if (!form.city.trim()) {
+      setError(lang === 'ar' ? 'اختر المدينة فقط بدون عنوان دقيق.' : 'Select the city only, not a precise address.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      localStorage.setItem('aidicore_last_city', form.city.trim());
+      localStorage.setItem('aidicore_last_country', form.countryCode.trim().toUpperCase() || 'AE');
+      const id = await createImpactRecord({
+        ...form,
+        title: form.title.trim(),
+        details: form.details.trim(),
+        city: form.city.trim(),
+        countryCode: form.countryCode.trim().toUpperCase() || 'AE',
+        userId: firebaseUser.uid,
+        userDisplayName: appUser?.displayName || firebaseUser.displayName || firebaseUser.email || 'User',
+      });
+      setCreatedId(id);
+      setDone(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : lang === 'ar' ? 'تعذر حفظ الأثر.' : 'Could not save impact record.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <Section className="max-w-3xl">
-      <Title title={lang === 'ar' ? 'سجّل أثرًا إيجابيًا' : 'Record Impact'} text={lang === 'ar' ? 'اكتب وصفًا آمنًا بدون أرقام هواتف أو عناوين دقيقة.' : 'Write a safe description without phone numbers or precise addresses.'} />
+    <Section className="max-w-5xl">
+      <Title title={lang === 'ar' ? 'سجّل أثرًا إيجابيًا' : 'Record Impact'} text={lang === 'ar' ? 'اختر نوع الأثر، وعدّل وصفًا قصيرًا إذا احتجت. نحاول تقليل الكتابة اليدوية وحماية الخصوصية.' : 'Choose the impact type and edit a short safe template if needed. AidiCore minimizes manual writing and protects privacy.'} />
       {done ? (
         <div className="card p-8">
           <CheckCircle2 className="text-emerald-300" />
           <h2 className="mt-3 text-2xl font-bold">{lang === 'ar' ? 'تم الإرسال للمراجعة' : 'Submitted for review'}</h2>
+          <p className="mt-2 text-slate-400">
+            {lang === 'ar' ? 'سيظهر الأثر في لوحة المستخدم كقيد المراجعة، ولن يظهر للعامة قبل الموافقة.' : 'The record now appears as pending in your dashboard and will not be public before approval.'}
+          </p>
+          {createdId && <p className="mt-3 text-xs text-slate-500">ID: {createdId}</p>}
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button className="btn-primary" onClick={() => setPage('dashboard')}>{lang === 'ar' ? 'العودة للوحة الأثر' : 'Back to dashboard'}</button>
+            <button className="btn-soft" onClick={() => { setDone(false); setCreatedId(''); chooseCategory(defaultCategory); }}>{lang === 'ar' ? 'تسجيل أثر آخر' : 'Record another'}</button>
+          </div>
         </div>
       ) : (
-        <form onSubmit={submit} className="card grid gap-4 p-6">
-          <input className="input" placeholder={lang === 'ar' ? 'العنوان' : 'Title'} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
-          <select className="input" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value as ImpactCategory })}>
-            {categories.map((category) => <option key={category.id} value={category.id}>{lang === 'ar' ? category.ar : category.en}</option>)}
-          </select>
-          <textarea className="input min-h-32" placeholder={lang === 'ar' ? 'التفاصيل الآمنة' : 'Safe details'} value={form.details} onChange={(event) => setForm({ ...form, details: event.target.value })} required />
-          <div className="grid gap-4 md:grid-cols-3">
-            <input className="input" type="date" value={form.occurredAt} onChange={(event) => setForm({ ...form, occurredAt: event.target.value })} />
-            <input className="input" placeholder="Country" value={form.countryCode} onChange={(event) => setForm({ ...form, countryCode: event.target.value })} />
-            <input className="input" placeholder={lang === 'ar' ? 'المدينة' : 'City'} value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} />
+        <form onSubmit={submit} className="card grid gap-6 p-6">
+          <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">
+            {lang === 'ar'
+              ? 'تذكير: سجّل أثرًا واحدًا لكل مساعدة فعلية. لا تقسّم نفس المساعدة إلى عدة سجلات ولا تكتب بيانات شخصية.'
+              : 'Reminder: record one impact per real action. Do not split the same help into multiple records, and do not include personal data.'}
           </div>
-          <select className="input" value={form.visibility} onChange={(event) => setForm({ ...form, visibility: event.target.value as Visibility })}>
-            <option value="private">{lang === 'ar' ? 'خاص' : 'Private'}</option>
-            <option value="anonymous_public">{lang === 'ar' ? 'عام بدون اسم' : 'Anonymous public'}</option>
-            <option value="public_profile">{lang === 'ar' ? 'عام باسم المستخدم' : 'Public profile'}</option>
-          </select>
-          <button className="btn-primary justify-center">{lang === 'ar' ? 'إرسال للمراجعة' : 'Submit for review'}</button>
+
+          <div>
+            <label className="mb-3 block text-sm font-bold text-slate-200">{lang === 'ar' ? '1. اختر نوع الأثر' : '1. Choose impact type'}</label>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {categories.map((category) => {
+                const Icon = category.icon;
+                const active = form.category === category.id;
+                return (
+                  <button type="button" key={category.id} onClick={() => chooseCategory(category.id)} className={`rounded-3xl border p-4 text-start transition ${active ? 'border-emerald-300/60 bg-emerald-400/10' : 'border-white/10 bg-white/[.03] hover:border-emerald-300/30'}`}>
+                    <div className={`mb-3 inline-flex rounded-2xl bg-gradient-to-br ${category.color} p-2 text-white`}><Icon size={18} /></div>
+                    <div className="font-bold text-white">{lang === 'ar' ? category.ar : category.en}</div>
+                    <div className="mt-1 text-xs text-emerald-200">+{categoryTemplate(category.id).credits} {lang === 'ar' ? 'رصيد أثر عند الاعتماد' : 'credit after approval'}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-sm font-bold text-slate-200">{lang === 'ar' ? 'عنوان مختصر' : 'Short title'}</label>
+              <input className="input" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-bold text-slate-200">{lang === 'ar' ? 'رصيد متوقع بعد الاعتماد' : 'Expected credit after approval'}</label>
+              <div className="input flex items-center text-emerald-200">+{selectedTemplate.credits}</div>
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-slate-200">{lang === 'ar' ? 'وصف آمن قصير' : 'Short safe description'}</label>
+            <textarea className="input min-h-28" value={form.details} onChange={(event) => setForm({ ...form, details: event.target.value })} required />
+          </div>
+          {looksSensitive && (
+            <div className="rounded-2xl border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-200">
+              {lang === 'ar' ? 'قد تحتوي التفاصيل على بيانات حساسة. يرجى حذف أي رقم هاتف أو عنوان دقيق أو رقم هوية.' : 'The details may contain sensitive data. Remove phone numbers, precise addresses, or ID numbers.'}
+            </div>
+          )}
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-slate-200">{lang === 'ar' ? '2. المدينة والسياق العام' : '2. City-level context'}</label>
+            <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto]">
+              <select className="input" value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} required>
+                {cityOptions.map((city) => <option key={city} value={city}>{city}</option>)}
+              </select>
+              <select className="input" value={form.countryCode} onChange={(event) => setForm({ ...form, countryCode: event.target.value })}>
+                <option value="AE">UAE</option>
+                <option value="EG">Egypt</option>
+                <option value="SA">Saudi Arabia</option>
+                <option value="QA">Qatar</option>
+                <option value="BH">Bahrain</option>
+                <option value="KW">Kuwait</option>
+                <option value="OM">Oman</option>
+              </select>
+              <button type="button" className="btn-soft justify-center" onClick={detectLocation}>{lang === 'ar' ? 'اقتراح الموقع' : 'Suggest location'}</button>
+            </div>
+            {locationNotice && <p className="mt-2 text-xs text-slate-400">{locationNotice}</p>}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-sm font-bold text-slate-200">{lang === 'ar' ? 'تاريخ الأثر' : 'Impact date'}</label>
+              <input className="input" type="date" value={form.occurredAt} onChange={(event) => setForm({ ...form, occurredAt: event.target.value })} />
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-bold text-slate-200">{lang === 'ar' ? 'الخصوصية' : 'Privacy'}</label>
+              <select className="input" value={form.visibility} onChange={(event) => setForm({ ...form, visibility: event.target.value as Visibility })}>
+                <option value="private">{lang === 'ar' ? 'خاص: يظهر لك فقط' : 'Private: only visible to you'}</option>
+                <option value="anonymous_public">{lang === 'ar' ? 'عام بدون اسم بعد الموافقة' : 'Anonymous public after approval'}</option>
+                <option value="public_profile">{lang === 'ar' ? 'عام باسم مستعار لاحقًا' : 'Public alias later'}</option>
+              </select>
+            </div>
+          </div>
+
+          {error && <p className="rounded-2xl border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-200">{error}</p>}
+          <button className="btn-primary justify-center" disabled={submitting || looksSensitive}>
+            {submitting ? (lang === 'ar' ? 'جارٍ الإرسال...' : 'Submitting...') : (lang === 'ar' ? 'إرسال للمراجعة' : 'Submit for review')}
+          </button>
         </form>
       )}
     </Section>
