@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, runTransaction, updateDoc } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../lib/firebase';
 import type { AppUser, GrowthStage } from '../types';
 
@@ -61,8 +61,19 @@ export function validateAlias(value: string) {
 
 export function suggestAliases(displayName?: string | null) {
   const base = normalizeAlias(displayName || 'community_seed') || 'community_seed';
-  const suffix = Math.floor(100 + Math.random() * 900);
-  return [base, `${base}_${suffix}`, `kind_${suffix}`, `helper_${suffix}`].filter((value, index, list) => validateAlias(value).ok && list.indexOf(value) === index).slice(0, 4);
+  const humanSuggestions = [
+    'community_seed',
+    'kind_helper',
+    'green_impact',
+    'silent_supporter',
+    'hope_builder',
+    'care_giver',
+    'good_bridge',
+    'oasis_helper',
+  ];
+  return [base, ...humanSuggestions]
+    .filter((value, index, list) => validateAlias(value).ok && list.indexOf(value) === index)
+    .slice(0, 4);
 }
 
 export function calculateGrowthStage(approvedActions = 0, impactCredits = 0): GrowthStage {
@@ -103,8 +114,8 @@ export async function isAliasAvailable(alias: string, currentUid?: string) {
     return !readDemoUsers().some((user) => user.uid !== currentUid && normalizeAlias(user.alias || '') === checked.alias);
   }
 
-  const snap = await getDocs(query(collection(db, 'users'), where('aliasNormalized', '==', checked.alias)));
-  return snap.empty || snap.docs.every((item) => item.id === currentUid);
+  const aliasSnap = await getDoc(doc(db, 'aliases', checked.alias));
+  return !aliasSnap.exists() || aliasSnap.data().uid === currentUid;
 }
 
 export async function savePassportProfile(user: AppUser, updates: { displayName: string; alias: string; realNameVisible: boolean; impactPassportEnabled: boolean; avatarId: string; hideContributionCategories: boolean; }) {
@@ -137,10 +148,27 @@ export async function savePassportProfile(user: AppUser, updates: { displayName:
     return next;
   }
 
-  const batch = writeBatch(db);
-  batch.update(doc(db, 'users', user.uid), next);
-  batch.set(doc(db, 'aliases', aliasCheck.alias), { uid: user.uid, alias: aliasCheck.alias, updatedAt: Date.now() });
-  await batch.commit();
+  await runTransaction(db, async (transaction) => {
+    const userRef = doc(db, 'users', user.uid);
+    const aliasRef = doc(db, 'aliases', aliasCheck.alias);
+    const aliasSnap = await transaction.get(aliasRef);
+
+    if (aliasSnap.exists() && aliasSnap.data().uid !== user.uid) {
+      throw new Error('Alias is already taken.');
+    }
+
+    const previousAlias = normalizeAlias(user.aliasNormalized || user.alias || '');
+    if (previousAlias && previousAlias !== aliasCheck.alias) {
+      const previousAliasRef = doc(db, 'aliases', previousAlias);
+      const previousAliasSnap = await transaction.get(previousAliasRef);
+      if (previousAliasSnap.exists() && previousAliasSnap.data().uid === user.uid) {
+        transaction.delete(previousAliasRef);
+      }
+    }
+
+    transaction.update(userRef, next);
+    transaction.set(aliasRef, { uid: user.uid, alias: aliasCheck.alias, updatedAt: Date.now() });
+  });
   return next;
 }
 

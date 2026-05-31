@@ -175,3 +175,14 @@
 - Non-social contribution badges.
 - Printable / PDF passport.
 - Temporary passport preview link foundation.
+
+### V1.5.1 Final Hotfix Notes
+
+V1.5.1 now includes the final Passport permissions correction, improved Passport UI language, and additional contribution categories requested during testing:
+
+- Food Support
+- Disability Support
+- Animal Welfare
+- Family Support
+
+These remain privacy-safe categories and do not require exposing personal data.

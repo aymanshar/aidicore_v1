@@ -268,3 +268,34 @@
 ### Notes
 - Share links and one-time view links are planned for the next Impact Passport phase.
 - Alias uniqueness enforcement will be added before public passport sharing is enabled.
+
+## V1.5.1 Hotfix - Passport Save Permissions & Privacy UI
+
+### Fixed
+- Fixed Firestore permission failure when checking alias availability by reading from the dedicated `aliases` collection instead of querying private user documents.
+- Strengthened alias ownership rules to prevent overwriting another user's alias.
+- Added safe alias release when a user changes their own alias.
+- Removed direct email display from the Impact Passport settings card.
+- Forced alias preview and suggestions to render left-to-right so `@alias` appears correctly in Arabic UI.
+
+### Improved
+- Added next-stage progress display to the Passport preview.
+- Replaced unclear passport status text with clearer ready/private wording.
+- Filled the lower Passport preview area with Contribution Areas and Impact Journey placeholders instead of leaving an empty card.
+
+### Build
+- `npm install`
+- `npm run build`
+- Build passed successfully with only the normal Vite bundle-size warning.
+
+## V1.5.1 Passport Permission + Categories Final Hotfix
+
+- Fixed the remaining Firestore `Missing or insufficient permissions` issue when saving Impact Passport settings by relaxing self-owned user profile update rules to rely on affected-key protection instead of requiring legacy `role/status` fields to exist on every user document.
+- Kept role/status protected from normal users through affected-key allowlisting.
+- Improved Impact Passport labels: Impact Index, Trust Level, Ready to Contribute, and stronger alias-only identity text.
+- Improved alias check button copy and width to avoid Arabic clipping.
+- Replaced technical/random alias suggestions with more human AidiCore-aligned aliases.
+- Added placeholder contribution areas and a clearer Impact Journey timeline.
+- Added four approved impact categories: Food Support, Disability Support, Animal Welfare, and Family Support.
+- Updated category templates and impact credit weights for the new categories.
+- Verified production build with `npm run build`; only Vite bundle-size warning remains.

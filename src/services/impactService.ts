@@ -33,6 +33,10 @@ const CATEGORY_CREDITS: Record<ImpactCategory, number> = {
   education: 0.25,
   volunteer_work: 0.3,
   emergency_help: 0.5,
+  food_support: 0.25,
+  disability_support: 0.35,
+  animal_welfare: 0.15,
+  family_support: 0.25,
 };
 
 function getImpactCredits(category: ImpactCategory, duplicate: boolean) {

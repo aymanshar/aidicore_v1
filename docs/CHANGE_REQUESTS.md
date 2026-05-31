@@ -274,3 +274,29 @@ Approved and implemented.
 
 ### Status
 Completed in V1.5.1.
+
+## 2026-05-31 — Fix Passport Save Permission Error
+
+### Requested By
+Ayman
+
+### Issue
+Saving the Impact Passport showed: `Missing or insufficient permissions`.
+
+### Root Cause
+Alias availability was checked by querying private `users` documents. Firestore rules correctly block broad user collection reads for normal users.
+
+### Implemented
+- Moved alias availability checks to the `aliases` collection.
+- Added transaction-based alias save logic.
+- Updated Firestore rules for alias create/update/delete ownership.
+- Removed visible email display from Passport UI.
+- Added LTR rendering for alias fields.
+- Improved Passport preview with stage progress, contribution areas, and impact journey.
+
+### Status
+Implemented and build verified.
+
+## Completed Change Request - Passport Save Final Fix
+
+User reported that `Missing or insufficient permissions` still appeared when saving the Passport. Fixed Firestore self-profile update rules and polished the Passport UI labels. Added additional contribution categories that fit AidiCore's mission.

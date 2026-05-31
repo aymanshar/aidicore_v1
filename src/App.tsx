@@ -648,10 +648,29 @@ function Profile({ setPage }: { setPage: (p: Page) => void }) {
   };
   const stageInfo = stageMap[stage] || stageMap.seed;
   const stageLabel = copy(lang, stageInfo.ar, stageInfo.en, stageInfo.fr);
+  const stageThresholds: Record<string, { min: number; next: number | null }> = {
+    seed: { min: 0, next: 10 },
+    sprout: { min: 10, next: 25 },
+    plant: { min: 25, next: 50 },
+    tree: { min: 50, next: 100 },
+    forest: { min: 100, next: 250 },
+    oasis: { min: 250, next: null },
+  };
+  const stageProgress = stageThresholds[stage] || stageThresholds.seed;
+  const progressPercent = stageProgress.next ? Math.min(100, Math.max(0, ((Number(appUser?.approvedActions || 0) - stageProgress.min) / (stageProgress.next - stageProgress.min)) * 100)) : 100;
+  const nextStageText = stageProgress.next
+    ? copy(lang, `${appUser?.approvedActions || 0} / ${stageProgress.next} مساهمة معتمدة`, `${appUser?.approvedActions || 0} / ${stageProgress.next} approved contributions`, `${appUser?.approvedActions || 0} / ${stageProgress.next} contributions approuvées`)
+    : copy(lang, 'أعلى مرحلة حالية', 'Highest current stage', 'Niveau actuel le plus élevé');
   const avatar = getAvatar(avatarId);
   const aliasCheck = validateAlias(alias);
   const aliasPreview = aliasCheck.alias ? `@${aliasCheck.alias}` : '@community_seed';
   const suggestions = suggestAliases(displayName || firebaseUser.email);
+  const contributionPlaceholders = [
+    copy(lang, '🌱 البيئة', '🌱 Environment', '🌱 Environnement'),
+    copy(lang, '🤝 المجتمع', '🤝 Community', '🤝 Communauté'),
+    copy(lang, '📚 التعليم', '📚 Education', '📚 Éducation'),
+    copy(lang, '❤️ الصحة', '❤️ Health', '❤️ Santé'),
+  ];
 
   const checkAlias = async () => {
     const checked = validateAlias(alias);
@@ -722,9 +741,9 @@ function Profile({ setPage }: { setPage: (p: Page) => void }) {
               </div>
               <div>
                 <p className="text-xs font-extrabold uppercase tracking-[.22em] text-emerald-200">AidiCore Passport</p>
-                <h3 className="mt-2 text-3xl font-extrabold text-white">{aliasPreview}</h3>
+                <h3 dir="ltr" className="mt-2 text-3xl font-extrabold text-white">{aliasPreview}</h3>
                 <p className="mt-2 text-sm text-slate-300">
-                  {realNameVisible ? displayName || firebaseUser.email : copy(lang, 'وضع الاسم الرمزي فقط', 'Alias-only mode', 'Mode alias uniquement')}
+                  {realNameVisible ? displayName || copy(lang, 'عضو موثق', 'Verified member', 'Membre vérifié') : copy(lang, 'هوية أثر آمنة باسم رمزي فقط', 'Safe impact identity in alias-only mode', 'Identité d’impact sécurisée en mode alias')}
                 </p>
               </div>
             </div>
@@ -735,27 +754,59 @@ function Profile({ setPage }: { setPage: (p: Page) => void }) {
                   <p className="text-sm font-bold uppercase tracking-[.18em] text-emerald-200">{copy(lang, 'المرحلة', 'Stage', 'Niveau')}</p>
                   <h4 className="mt-1 text-3xl font-extrabold text-white">{stageInfo.icon} {stageLabel}</h4>
                   <p className="mt-2 text-sm text-slate-300">{copy(lang, stageInfo.hintAr, stageInfo.hintEn, stageInfo.hintFr)}</p>
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-300">
+                      <span>{copy(lang, 'التقدم للمرحلة التالية', 'Progress to next stage', 'Progression vers le niveau suivant')}</span>
+                      <span>{nextStageText}</span>
+                    </div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+                      <div className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-blue-400" style={{ width: `${progressPercent}%` }} />
+                    </div>
+                  </div>
                 </div>
                 <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-center">
                   <div className="text-2xl font-extrabold text-white">{impactIndex}</div>
-                  <div className="text-xs font-bold text-emerald-200">{copy(lang, 'مؤشر', 'Index', 'Indice')}</div>
+                  <div className="text-xs font-bold text-emerald-200">{copy(lang, 'مؤشر الأثر', 'Impact Index', 'Indice d’impact')}</div>
                 </div>
               </div>
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              <Metric title={copy(lang, 'الثقة', 'Trust', 'Confiance')} value={`${appUser?.trustScore ?? 0}`} />
-              <Metric title={copy(lang, 'معتمد', 'Approved', 'Approuvés')} value={String(appUser?.approvedActions ?? 0)} />
-              <Metric title={copy(lang, 'الحالة', 'Visibility', 'Visibilité')} value={impactPassportEnabled ? copy(lang, 'مجهز', 'Ready', 'Prêt') : copy(lang, 'خاص', 'Private', 'Privé')} />
+              <Metric title={copy(lang, 'مستوى الثقة', 'Trust Level', 'Niveau de confiance')} value={`${appUser?.trustScore ?? 0}`} />
+              <Metric title={copy(lang, 'مساهمات معتمدة', 'Approved Contributions', 'Contributions approuvées')} value={String(appUser?.approvedActions ?? 0)} />
+              <Metric title={copy(lang, 'الحالة', 'Status', 'Statut')} value={impactPassportEnabled ? copy(lang, 'جاهز للمساهمة', 'Ready to contribute', 'Prêt à contribuer') : copy(lang, 'خاص', 'Private', 'Privé')} />
+            </div>
+
+            <div className="mt-5 grid gap-3 rounded-[1.5rem] border border-white/10 bg-black/15 p-5">
+              <div>
+                <p className="text-sm font-extrabold text-white">{copy(lang, 'مجالات المساهمة', 'Contribution areas', 'Domaines de contribution')}</p>
+                <p className="mt-1 text-sm text-slate-400">{hideContributionCategories ? copy(lang, 'مخفية في النسخة العامة.', 'Hidden on the public version.', 'Masqués dans la version publique.') : copy(lang, 'ستظهر هنا المجالات الفعلية بعد اعتماد أول مساهمة. هذه أمثلة إرشادية.', 'Actual areas appear here after your first approved contribution. These are gentle placeholders.', 'Les vrais domaines apparaîtront après votre première contribution approuvée.')}</p>
+                {!hideContributionCategories && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {contributionPlaceholders.map((item) => (
+                      <span key={item} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-slate-400">{item}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="border-t border-white/10 pt-3">
+                <p className="text-sm font-extrabold text-white">{copy(lang, 'رحلة الأثر', 'Impact journey', 'Parcours d’impact')}</p>
+                <div className="mt-3 grid gap-2 text-sm text-slate-400">
+                  <p>✓ {copy(lang, 'انضممت إلى AidiCore', 'Joined AidiCore', 'A rejoint AidiCore')}</p>
+                  <p>○ {copy(lang, 'أول مساهمة', 'First contribution', 'Première contribution')}</p>
+                  <p>○ {copy(lang, 'أول اعتماد', 'First approval', 'Première approbation')}</p>
+                  <p>○ {copy(lang, 'الوصول إلى مرحلة البرعم', 'Reach Sprout stage', 'Atteindre le niveau Pousse')}</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="card grid gap-5 p-6 md:p-8">
           <div className="rounded-3xl border border-white/10 bg-white/[.04] p-5">
-            <p className="text-sm font-bold text-slate-400">{copy(lang, 'حسابك', 'Your account', 'Votre compte')}</p>
-            <p className="mt-1 font-bold text-white">{firebaseUser.email}</p>
-            <p className="mt-2 text-xs text-slate-500">{copy(lang, 'لا يتم عرض البريد أو المعرفات الداخلية في جواز الأثر العام.', 'Email and internal IDs are never shown on the public passport.', 'L’e-mail et les identifiants internes ne sont jamais affichés publiquement.')}</p>
+            <p className="text-sm font-bold text-slate-400">{copy(lang, 'حالة الحساب', 'Account status', 'Statut du compte')}</p>
+            <p className="mt-1 font-bold text-white">{copy(lang, 'حساب موثق ومتصل', 'Verified connected account', 'Compte vérifié connecté')}</p>
+            <p className="mt-2 text-xs text-slate-500">{copy(lang, 'لا نعرض البريد الإلكتروني أو المعرفات الداخلية داخل جواز الأثر.', 'We do not display email addresses or internal IDs inside the Impact Passport.', 'Nous n’affichons pas les e-mails ni les identifiants internes dans le passeport d’impact.')}</p>
           </div>
 
           <label className="grid gap-2">
@@ -766,12 +817,12 @@ function Profile({ setPage }: { setPage: (p: Page) => void }) {
           <div className="grid gap-2">
             <span className="text-sm font-bold text-slate-200">{copy(lang, 'الاسم الرمزي الفريد', 'Unique alias', 'Alias unique')}</span>
             <div className="flex gap-2">
-              <input className="input" value={alias} onChange={(event) => setAlias(normalizeAlias(event.target.value))} placeholder="community_seed" required />
-              <button type="button" className="btn-soft shrink-0" onClick={checkAlias} disabled={checkingAlias}>{checkingAlias ? '…' : copy(lang, 'فحص', 'Check', 'Vérifier')}</button>
+              <input dir="ltr" className="input" value={alias} onChange={(event) => setAlias(normalizeAlias(event.target.value))} placeholder="community_seed" required />
+              <button type="button" className="btn-soft min-w-[96px] shrink-0" onClick={checkAlias} disabled={checkingAlias}>{checkingAlias ? '…' : copy(lang, 'تحقق', 'Check', 'Vérifier')}</button>
             </div>
             <div className="flex flex-wrap gap-2">
               {suggestions.map((item) => (
-                <button key={item} type="button" className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-slate-300 hover:border-emerald-300/40 hover:text-white" onClick={() => setAlias(item)}>
+                <button key={item} dir="ltr" type="button" className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-slate-300 hover:border-emerald-300/40 hover:text-white" onClick={() => setAlias(item)}>
                   @{item}
                 </button>
               ))}
@@ -851,6 +902,10 @@ function RecordImpact({ setPage }: { setPage: (p: Page) => void }) {
       education: { titleAr: 'دعم تعليمي', titleEn: 'Education support', detailsAr: 'قدمت دعمًا تعليميًا أو مساعدة معرفية دون مشاركة بيانات شخصية.', detailsEn: 'Provided education support without sharing personal details.', credits: 0.25 },
       volunteer_work: { titleAr: 'عمل تطوعي', titleEn: 'Volunteer work', detailsAr: 'شاركت في عمل تطوعي آمن يخدم المجتمع.', detailsEn: 'Participated in safe volunteer work serving the community.', credits: 0.3 },
       emergency_help: { titleAr: 'مساعدة طارئة', titleEn: 'Emergency assistance', detailsAr: 'قدمت مساعدة طارئة آمنة دون ذكر عناوين دقيقة أو بيانات شخصية.', detailsEn: 'Provided safe emergency assistance without precise addresses or personal details.', credits: 0.5 },
+      food_support: { titleAr: 'دعم غذائي', titleEn: 'Food support', detailsAr: 'قدمت دعمًا غذائيًا أو ساعدت في إيصال طعام بطريقة آمنة ومحترمة.', detailsEn: 'Provided food support or helped deliver meals safely and respectfully.', credits: 0.25 },
+      disability_support: { titleAr: 'دعم أصحاب الهمم', titleEn: 'Disability support', detailsAr: 'قدمت مساعدة آمنة أو تسهيلًا لشخص من أصحاب الهمم دون كشف بياناته.', detailsEn: 'Provided safe assistance or accessibility support without exposing personal details.', credits: 0.35 },
+      animal_welfare: { titleAr: 'رعاية الحيوانات', titleEn: 'Animal welfare', detailsAr: 'ساهمت في رعاية حيوان أو دعم الرفق بالحيوان بطريقة آمنة.', detailsEn: 'Supported animal care or welfare in a safe and responsible way.', credits: 0.15 },
+      family_support: { titleAr: 'دعم الأسر', titleEn: 'Family support', detailsAr: 'قدمت دعمًا آمنًا لأسرة أو ساعدت في احتياج يومي دون مشاركة بيانات حساسة.', detailsEn: 'Provided safe family support or helped with an everyday need without sensitive details.', credits: 0.25 },
     };
     return templates[category];
   };

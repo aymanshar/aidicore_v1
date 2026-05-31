@@ -4,7 +4,7 @@ export type UserStatus = 'active' | 'suspended';
 export type GrowthStage = 'seed' | 'sprout' | 'plant' | 'tree' | 'forest' | 'oasis';
 export type ImpactStatus = 'pending' | 'approved' | 'rejected';
 export type Visibility = 'private' | 'anonymous_public' | 'public_profile';
-export type ImpactCategory = 'community_service' | 'blood_donation' | 'visiting_patients' | 'helping_seniors' | 'mental_support' | 'anti_bullying' | 'environment' | 'education' | 'volunteer_work' | 'emergency_help';
+export type ImpactCategory = 'community_service' | 'blood_donation' | 'visiting_patients' | 'helping_seniors' | 'mental_support' | 'anti_bullying' | 'environment' | 'education' | 'volunteer_work' | 'emergency_help' | 'food_support' | 'disability_support' | 'animal_welfare' | 'family_support';
 
 export interface AppUser {
   uid: string;

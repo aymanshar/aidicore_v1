@@ -35,8 +35,6 @@ service cloud.firestore {
             'email',
             'emailVerified'
           ])
-          && request.resource.data.role == resource.data.role
-          && request.resource.data.status == resource.data.status
           && (!('aliasNormalized' in request.resource.data) || validAlias(request.resource.data.aliasNormalized))
           && (!('avatarId' in request.resource.data) || validAvatar(request.resource.data.avatarId)))
         || (isAdmin()
@@ -50,10 +48,18 @@ service cloud.firestore {
 
     match /aliases/{alias} {
       allow read: if signedIn();
-      allow create, update: if signedIn()
+      allow create: if signedIn()
         && validAlias(alias)
-        && request.resource.data.uid == request.auth.uid;
-      allow delete: if false;
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.alias == alias;
+      allow update: if signedIn()
+        && validAlias(alias)
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.alias == alias;
+      allow delete: if signedIn()
+        && validAlias(alias)
+        && resource.data.uid == request.auth.uid;
     }
 
     match /impact_records/{id} {

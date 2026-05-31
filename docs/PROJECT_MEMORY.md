@@ -227,3 +227,17 @@ Current Growth Stages:
 - Tree
 - Forest
 - Oasis
+
+## V1.5.1 Hotfix Decision
+
+The alias availability checker must use the public-safe `aliases` registry rather than querying the `users` collection. User documents remain private to the owner and moderators. Alias documents are minimal and contain only alias ownership metadata.
+
+The Impact Passport settings page must not display the user's email address. It should show a safe verified-account message instead.
+
+Aliases should always render as `@alias` with left-to-right direction even in Arabic layouts.
+
+## V1.5.1 Final Hotfix Memory
+
+A remaining Firestore permission error appeared during Impact Passport save. The cause was a rules mismatch for self-owned user updates where some existing user documents may not include all legacy immutable fields expected by the rule. The final fix keeps normal users restricted to safe profile/passport fields through `affectedKeys().hasOnly(...)` and removes the fragile direct equality check for `role/status` in the self-update branch.
+
+Additional contribution categories were added: food support, disability support, animal welfare, and family support. Passport copy was polished to avoid unclear Arabic labels and technical alias suggestions.
