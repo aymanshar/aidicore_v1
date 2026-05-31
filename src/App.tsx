@@ -35,6 +35,7 @@ import {
 import { listAuditLogs } from './services/auditService';
 import { getSettings, saveSettings } from './services/settingsService';
 import { listUsers, updateUserRole, updateUserStatus } from './services/userService';
+import { AVATARS, calculateGrowthStage, getAvatar, getSafeDisplayName, isAliasAvailable, normalizeAlias, suggestAliases, validateAlias } from './services/passportService';
 import type { AppSettings, AppUser, AuditLog, CommunityImpactStats, ImpactCategory, ImpactRecord, UserRole, UserStatus, Visibility } from './types';
 
 export type Page =
@@ -584,7 +585,7 @@ function Dashboard({ setPage }: { setPage: (p: Page) => void }) {
 
   return (
     <Section>
-      <Title title={copy(lang, 'لوحة الأثر', 'Impact Dashboard', 'Tableau d’impact')} text={`${copy(lang, 'مرحبًا', 'Welcome', 'Bienvenue')}, ${appUser?.displayName || firebaseUser.email}`} />
+      <Title title={copy(lang, 'لوحة الأثر', 'Impact Dashboard', 'Tableau d’impact')} text={`${copy(lang, 'مرحبًا', 'Welcome', 'Bienvenue')}, ${getSafeDisplayName(appUser) || firebaseUser.email}`} />
       <div className="grid gap-4 md:grid-cols-4">
         <Metric title={copy(lang, 'مؤشر الأثر', 'Impact Index', 'Indice d’impact')} value={String(appUser?.impactCredits ?? appUser?.impactScore ?? 0)} />
         <Metric title={copy(lang, 'معتمد', 'Approved', 'Approuvé')} value={loading ? '…' : String(approved)} />
@@ -593,7 +594,7 @@ function Dashboard({ setPage }: { setPage: (p: Page) => void }) {
       </div>
       <div className="mt-8 flex flex-wrap gap-3">
         <button className="btn-primary" onClick={() => setPage('record')}>{copy(lang, 'سجّل أثرًا', 'Record Impact', 'Enregistrer un impact')}</button>
-        <button className="btn-soft" onClick={() => setPage('profile')}>{lang === 'ar' ? 'الملف الشخصي' : 'Profile'}</button>
+        <button className="btn-soft" onClick={() => setPage('profile')}>{copy(lang, 'جواز الأثر', 'Impact Passport', 'Passeport d’impact')}</button>
       </div>
       <MyRecords records={records} loading={loading} />
     </Section>
@@ -614,126 +615,208 @@ function Profile({ setPage }: { setPage: (p: Page) => void }) {
   const { firebaseUser, appUser, refreshUser } = useAuth();
   const { lang } = useLanguage();
   const [displayName, setDisplayName] = useState(appUser?.displayName || firebaseUser?.displayName || '');
-  const [alias, setAlias] = useState(appUser?.alias || 'New Seed');
+  const [alias, setAlias] = useState(appUser?.alias || suggestAliases(appUser?.displayName || firebaseUser?.email)[0] || 'community_seed');
+  const [avatarId, setAvatarId] = useState(appUser?.avatarId || 'seed');
   const [realNameVisible, setRealNameVisible] = useState(Boolean(appUser?.realNameVisible));
   const [impactPassportEnabled, setImpactPassportEnabled] = useState(Boolean(appUser?.impactPassportEnabled));
+  const [hideContributionCategories, setHideContributionCategories] = useState(Boolean(appUser?.hideContributionCategories));
   const [message, setMessage] = useState('');
+  const [messageTone, setMessageTone] = useState<'success' | 'error' | 'info'>('info');
+  const [checkingAlias, setCheckingAlias] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setDisplayName(appUser?.displayName || firebaseUser?.displayName || '');
-    setAlias(appUser?.alias || 'New Seed');
+    setAlias(appUser?.alias || suggestAliases(appUser?.displayName || firebaseUser?.email)[0] || 'community_seed');
+    setAvatarId(appUser?.avatarId || 'seed');
     setRealNameVisible(Boolean(appUser?.realNameVisible));
     setImpactPassportEnabled(Boolean(appUser?.impactPassportEnabled));
+    setHideContributionCategories(Boolean(appUser?.hideContributionCategories));
   }, [appUser, firebaseUser]);
 
   if (!firebaseUser) return <RequireLogin setPage={setPage} />;
 
-  const stage = appUser?.growthStage || 'seed';
-  const stageMap: Record<string, { icon: string; ar: string; en: string; fr: string }> = {
-    seed: { icon: '🌱', ar: 'بذرة', en: 'Seed', fr: 'Graine' },
-    sprout: { icon: '🌿', ar: 'برعم', en: 'Sprout', fr: 'Pousse' },
-    plant: { icon: '🪴', ar: 'نبتة', en: 'Plant', fr: 'Plante' },
-    tree: { icon: '🌳', ar: 'شجرة', en: 'Tree', fr: 'Arbre' },
-    forest: { icon: '🌲', ar: 'غابة', en: 'Forest', fr: 'Forêt' },
-    oasis: { icon: '🏞️', ar: 'واحة', en: 'Oasis', fr: 'Oasis' },
+  const impactIndex = appUser?.impactCredits ?? appUser?.impactScore ?? 0;
+  const stage = appUser?.growthStage || calculateGrowthStage(appUser?.approvedActions || 0, impactIndex);
+  const stageMap: Record<string, { icon: string; ar: string; en: string; fr: string; hintAr: string; hintEn: string; hintFr: string }> = {
+    seed: { icon: '🌱', ar: 'بذرة', en: 'Seed', fr: 'Graine', hintAr: 'بداية هادئة لأثر مستمر.', hintEn: 'A quiet beginning for consistent impact.', hintFr: 'Un début discret pour un impact régulier.' },
+    sprout: { icon: '🌿', ar: 'برعم', en: 'Sprout', fr: 'Pousse', hintAr: 'بدأت مساهماتك تظهر باستمرارية.', hintEn: 'Your contributions are becoming consistent.', hintFr: 'Vos contributions deviennent régulières.' },
+    plant: { icon: '🪴', ar: 'نبتة', en: 'Plant', fr: 'Plante', hintAr: 'أثر متنوع ومستقر.', hintEn: 'Stable and diverse impact.', hintFr: 'Impact stable et diversifié.' },
+    tree: { icon: '🌳', ar: 'شجرة', en: 'Tree', fr: 'Arbre', hintAr: 'حضور مجتمعي موثوق.', hintEn: 'A trusted community presence.', hintFr: 'Une présence communautaire fiable.' },
+    forest: { icon: '🌲', ar: 'غابة', en: 'Forest', fr: 'Forêt', hintAr: 'أثر طويل المدى.', hintEn: 'Long-term community impact.', hintFr: 'Impact communautaire durable.' },
+    oasis: { icon: '🏞️', ar: 'واحة', en: 'Oasis', fr: 'Oasis', hintAr: 'نموذج ملهم في العطاء.', hintEn: 'An inspiring model of contribution.', hintFr: 'Un modèle inspirant de contribution.' },
   };
   const stageInfo = stageMap[stage] || stageMap.seed;
   const stageLabel = copy(lang, stageInfo.ar, stageInfo.en, stageInfo.fr);
+  const avatar = getAvatar(avatarId);
+  const aliasCheck = validateAlias(alias);
+  const aliasPreview = aliasCheck.alias ? `@${aliasCheck.alias}` : '@community_seed';
+  const suggestions = suggestAliases(displayName || firebaseUser.email);
 
-  const cleanAlias = (value: string) => value.replace(/[^\p{L}\p{N}\s_-]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 32);
+  const checkAlias = async () => {
+    const checked = validateAlias(alias);
+    if (!checked.ok) {
+      setMessageTone('error');
+      setMessage(checked.message);
+      return;
+    }
+    setCheckingAlias(true);
+    const available = await isAliasAvailable(checked.alias, firebaseUser.uid);
+    setCheckingAlias(false);
+    setMessageTone(available ? 'success' : 'error');
+    setMessage(available
+      ? copy(lang, 'الاسم الرمزي متاح.', 'Alias is available.', 'Alias disponible.')
+      : copy(lang, 'هذا الاسم الرمزي مستخدم بالفعل.', 'This alias is already taken.', 'Cet alias est déjà utilisé.'));
+  };
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
-    const safeAlias = cleanAlias(alias) || 'New Seed';
-    if (safeAlias.length < 3) {
-      setMessage(copy(lang, 'اكتب اسمًا رمزيًا من 3 أحرف على الأقل.', 'Use an alias of at least 3 characters.', 'Utilisez un alias d’au moins 3 caractères.'));
+    const checked = validateAlias(alias);
+    if (!checked.ok) {
+      setMessageTone('error');
+      setMessage(checked.message);
       return;
     }
     setSaving(true);
     setMessage('');
-    await updateCurrentUserProfile(firebaseUser, {
-      displayName: displayName.trim() || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'AidiCore User',
-      alias: safeAlias,
-      realNameVisible,
-      impactPassportEnabled,
-    });
-    await refreshUser();
-    setSaving(false);
-    setMessage(copy(lang, 'تم حفظ جواز الأثر.', 'Impact Passport saved.', 'Passeport d’impact enregistré.'));
+    try {
+      await updateCurrentUserProfile(firebaseUser, {
+        displayName: displayName.trim() || firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'AidiCore User',
+        alias: checked.alias,
+        realNameVisible,
+        impactPassportEnabled,
+        avatarId,
+        hideContributionCategories,
+      });
+      await refreshUser();
+      setAlias(checked.alias);
+      setMessageTone('success');
+      setMessage(copy(lang, 'تم حفظ جواز الأثر بأمان.', 'Impact Passport saved safely.', 'Passeport d’impact enregistré en toute sécurité.'));
+    } catch (error) {
+      setMessageTone('error');
+      setMessage(error instanceof Error ? error.message : copy(lang, 'تعذر حفظ جواز الأثر.', 'Could not save Impact Passport.', 'Impossible d’enregistrer le passeport.'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <Section className="max-w-5xl">
+    <Section className="max-w-6xl">
       <Title
         title={copy(lang, 'جواز الأثر', 'Impact Passport', 'Passeport d’impact')}
         text={copy(
           lang,
-          'هوية أثر آمنة تعرض إنجازاتك بصورة رمزية دون كشف بيانات حساسة. روابط المشاركة الخاصة ستضاف في المرحلة القادمة.',
-          'A safe impact identity that presents your achievements symbolically without exposing sensitive information. Private share links will come next.',
-          'Une identité d’impact sécurisée qui présente vos contributions de façon symbolique sans exposer de données sensibles. Les liens privés arriveront ensuite.'
+          'هوية أثر آمنة تعرض مساهماتك باسم رمزي وصورة ودية دون كشف بيانات حساسة.',
+          'A safe impact identity that presents your contribution through an alias and friendly avatar without exposing sensitive information.',
+          'Une identité d’impact sécurisée qui présente vos contributions avec un alias et un avatar convivial, sans données sensibles.'
         )}
       />
-      <form onSubmit={save} className="card grid gap-6 p-6 md:p-8">
-        <div className="grid gap-6 lg:grid-cols-[.9fr_1.1fr]">
-          <div className="rounded-[2rem] border border-emerald-300/20 bg-emerald-400/10 p-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-24 w-24 items-center justify-center rounded-[2rem] border border-white/10 bg-white/10 text-5xl">
-                {stageInfo.icon}
+
+      <form onSubmit={save} className="grid gap-6 lg:grid-cols-[.9fr_1.1fr]">
+        <div className="card overflow-hidden p-0">
+          <div className="relative bg-gradient-to-br from-emerald-400/20 via-cyan-400/10 to-blue-500/10 p-6 md:p-8">
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/60 to-transparent" />
+            <div className="flex items-center gap-5">
+              <div className="flex h-28 w-28 items-center justify-center rounded-[2rem] border border-white/15 bg-white/10 text-6xl shadow-2xl">
+                {avatar.icon}
               </div>
               <div>
-                <p className="text-sm font-bold uppercase tracking-[.18em] text-emerald-200">{copy(lang, 'المرحلة', 'Stage', 'Niveau')}</p>
-                <h3 className="mt-1 text-3xl font-extrabold text-white">{stageLabel}</h3>
-                <p className="mt-1 text-sm text-slate-300">{copy(lang, 'تتطور المرحلة مع الاستمرارية وجودة الأثر.', 'Stage grows with consistency and quality.', 'Le niveau évolue avec la régularité et la qualité.')}</p>
+                <p className="text-xs font-extrabold uppercase tracking-[.22em] text-emerald-200">AidiCore Passport</p>
+                <h3 className="mt-2 text-3xl font-extrabold text-white">{aliasPreview}</h3>
+                <p className="mt-2 text-sm text-slate-300">
+                  {realNameVisible ? displayName || firebaseUser.email : copy(lang, 'وضع الاسم الرمزي فقط', 'Alias-only mode', 'Mode alias uniquement')}
+                </p>
               </div>
             </div>
-            <div className="mt-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-              <Metric title={copy(lang, 'مؤشر الأثر', 'Impact Index', 'Indice d’impact')} value={String(appUser?.impactCredits ?? appUser?.impactScore ?? 0)} />
-              <Metric title={copy(lang, 'الثقة', 'Trust', 'Confiance')} value={`${appUser?.trustScore ?? 0}`} />
-              <Metric title={copy(lang, 'آثار معتمدة', 'Approved', 'Approuvés')} value={String(appUser?.approvedActions ?? 0)} />
-            </div>
-          </div>
 
-          <div className="grid gap-4">
-            <div className="rounded-3xl border border-white/10 bg-white/[.04] p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="mt-8 rounded-[2rem] border border-white/10 bg-black/20 p-5">
+              <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-sm font-bold text-slate-400">{copy(lang, 'الحساب', 'Account', 'Compte')}</p>
-                  <p className="mt-1 font-bold text-white">{firebaseUser.email}</p>
+                  <p className="text-sm font-bold uppercase tracking-[.18em] text-emerald-200">{copy(lang, 'المرحلة', 'Stage', 'Niveau')}</p>
+                  <h4 className="mt-1 text-3xl font-extrabold text-white">{stageInfo.icon} {stageLabel}</h4>
+                  <p className="mt-2 text-sm text-slate-300">{copy(lang, stageInfo.hintAr, stageInfo.hintEn, stageInfo.hintFr)}</p>
                 </div>
-                <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200">
-                  {appUser?.status || 'active'}
-                </span>
+                <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-center">
+                  <div className="text-2xl font-extrabold text-white">{impactIndex}</div>
+                  <div className="text-xs font-bold text-emerald-200">{copy(lang, 'مؤشر', 'Index', 'Indice')}</div>
+                </div>
               </div>
             </div>
 
-            <label className="grid gap-2">
-              <span className="text-sm font-bold text-slate-200">{copy(lang, 'الاسم الظاهر داخل حسابك', 'Display name inside your account', 'Nom affiché dans votre compte')}</span>
-              <input className="input" value={displayName} onChange={(event) => setDisplayName(event.target.value)} required />
-              <span className="text-xs text-slate-500">{copy(lang, 'لن يظهر للعامة إلا إذا اخترت ذلك لاحقًا.', 'It will not be public unless you choose so later.', 'Il ne sera pas public sauf si vous le choisissez plus tard.')}</span>
-            </label>
-
-            <label className="grid gap-2">
-              <span className="text-sm font-bold text-slate-200">{copy(lang, 'الاسم الرمزي الفريد', 'Unique impact alias', 'Alias d’impact unique')}</span>
-              <input className="input" value={alias} onChange={(event) => setAlias(event.target.value)} placeholder="Green Oasis" required />
-              <span className="text-xs text-slate-500">{copy(lang, 'استخدم اسمًا شكليًا بدل الاسم الحقيقي في جواز الأثر.', 'Use a symbolic name instead of your real name in the Impact Passport.', 'Utilisez un nom symbolique au lieu du vrai nom dans le passeport d’impact.')}</span>
-            </label>
-
-            <div className="grid gap-3 rounded-3xl border border-white/10 bg-white/[.04] p-5">
-              <label className="flex items-start gap-3 text-sm text-slate-300">
-                <input type="checkbox" checked={realNameVisible} onChange={(event) => setRealNameVisible(event.target.checked)} className="mt-1" />
-                <span>{copy(lang, 'السماح بإظهار الاسم الحقيقي عند مشاركة جواز الأثر لاحقًا.', 'Allow showing my real name when I share my Impact Passport later.', 'Autoriser l’affichage de mon vrai nom lorsque je partagerai mon passeport d’impact.')}</span>
-              </label>
-              <label className="flex items-start gap-3 text-sm text-slate-300">
-                <input type="checkbox" checked={impactPassportEnabled} onChange={(event) => setImpactPassportEnabled(event.target.checked)} className="mt-1" />
-                <span>{copy(lang, 'تجهيز جواز الأثر للمشاركة الخاصة عند إطلاق روابط المشاركة.', 'Prepare my Impact Passport for private sharing when share links launch.', 'Préparer mon passeport d’impact pour le partage privé lorsque les liens seront disponibles.')}</span>
-              </label>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <Metric title={copy(lang, 'الثقة', 'Trust', 'Confiance')} value={`${appUser?.trustScore ?? 0}`} />
+              <Metric title={copy(lang, 'معتمد', 'Approved', 'Approuvés')} value={String(appUser?.approvedActions ?? 0)} />
+              <Metric title={copy(lang, 'الحالة', 'Visibility', 'Visibilité')} value={impactPassportEnabled ? copy(lang, 'مجهز', 'Ready', 'Prêt') : copy(lang, 'خاص', 'Private', 'Privé')} />
             </div>
           </div>
         </div>
 
-        {message && <p className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-sm text-emerald-200">{message}</p>}
-        <button className="btn-primary justify-center" disabled={saving}>{saving ? copy(lang, 'جارٍ الحفظ...', 'Saving...', 'Enregistrement...') : copy(lang, 'حفظ جواز الأثر', 'Save Impact Passport', 'Enregistrer le passeport')}</button>
+        <div className="card grid gap-5 p-6 md:p-8">
+          <div className="rounded-3xl border border-white/10 bg-white/[.04] p-5">
+            <p className="text-sm font-bold text-slate-400">{copy(lang, 'حسابك', 'Your account', 'Votre compte')}</p>
+            <p className="mt-1 font-bold text-white">{firebaseUser.email}</p>
+            <p className="mt-2 text-xs text-slate-500">{copy(lang, 'لا يتم عرض البريد أو المعرفات الداخلية في جواز الأثر العام.', 'Email and internal IDs are never shown on the public passport.', 'L’e-mail et les identifiants internes ne sont jamais affichés publiquement.')}</p>
+          </div>
+
+          <label className="grid gap-2">
+            <span className="text-sm font-bold text-slate-200">{copy(lang, 'الاسم الحقيقي داخل الحساب', 'Real name inside account', 'Nom réel dans le compte')}</span>
+            <input className="input" value={displayName} onChange={(event) => setDisplayName(event.target.value)} required />
+          </label>
+
+          <div className="grid gap-2">
+            <span className="text-sm font-bold text-slate-200">{copy(lang, 'الاسم الرمزي الفريد', 'Unique alias', 'Alias unique')}</span>
+            <div className="flex gap-2">
+              <input className="input" value={alias} onChange={(event) => setAlias(normalizeAlias(event.target.value))} placeholder="community_seed" required />
+              <button type="button" className="btn-soft shrink-0" onClick={checkAlias} disabled={checkingAlias}>{checkingAlias ? '…' : copy(lang, 'فحص', 'Check', 'Vérifier')}</button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {suggestions.map((item) => (
+                <button key={item} type="button" className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-slate-300 hover:border-emerald-300/40 hover:text-white" onClick={() => setAlias(item)}>
+                  @{item}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-3">
+            <span className="text-sm font-bold text-slate-200">{copy(lang, 'اختر صورة رمزية ودية', 'Choose a friendly avatar', 'Choisissez un avatar convivial')}</span>
+            <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
+              {AVATARS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  title={copy(lang, item.ar, item.en, item.fr)}
+                  className={`flex h-12 items-center justify-center rounded-2xl border text-2xl transition ${avatarId === item.id ? 'border-emerald-300 bg-emerald-400/20' : 'border-white/10 bg-white/5 hover:border-white/25'}`}
+                  onClick={() => setAvatarId(item.id)}
+                >
+                  {item.icon}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-3 rounded-3xl border border-white/10 bg-white/[.04] p-5">
+            <label className="flex items-start gap-3 text-sm text-slate-300">
+              <input type="checkbox" checked={realNameVisible} onChange={(event) => setRealNameVisible(event.target.checked)} className="mt-1" />
+              <span>{copy(lang, 'السماح بإظهار الاسم الحقيقي عند مشاركة جواز الأثر لاحقًا.', 'Allow showing my real name when I share my Impact Passport later.', 'Autoriser l’affichage de mon vrai nom lorsque je partagerai mon passeport d’impact.')}</span>
+            </label>
+            <label className="flex items-start gap-3 text-sm text-slate-300">
+              <input type="checkbox" checked={impactPassportEnabled} onChange={(event) => setImpactPassportEnabled(event.target.checked)} className="mt-1" />
+              <span>{copy(lang, 'تجهيز جواز الأثر للمشاركة الخاصة عند إطلاق روابط المشاركة.', 'Prepare my Impact Passport for private sharing when share links launch.', 'Préparer mon passeport d’impact pour le partage privé lorsque les liens seront disponibles.')}</span>
+            </label>
+            <label className="flex items-start gap-3 text-sm text-slate-300">
+              <input type="checkbox" checked={hideContributionCategories} onChange={(event) => setHideContributionCategories(event.target.checked)} className="mt-1" />
+              <span>{copy(lang, 'إخفاء مجالات المساهمة في النسخة العامة من الجواز.', 'Hide contribution categories on the public passport.', 'Masquer les catégories de contribution dans la version publique.')}</span>
+            </label>
+          </div>
+
+          {message && (
+            <p className={`rounded-2xl border p-3 text-sm ${messageTone === 'error' ? 'border-red-400/20 bg-red-500/10 text-red-200' : messageTone === 'success' ? 'border-emerald-400/20 bg-emerald-500/10 text-emerald-200' : 'border-blue-400/20 bg-blue-500/10 text-blue-200'}`}>
+              {message}
+            </p>
+          )}
+          <button className="btn-primary justify-center" disabled={saving}>{saving ? copy(lang, 'جارٍ الحفظ...', 'Saving...', 'Enregistrement...') : copy(lang, 'حفظ جواز الأثر', 'Save Impact Passport', 'Enregistrer le passeport')}</button>
+        </div>
       </form>
     </Section>
   );
@@ -847,7 +930,7 @@ function RecordImpact({ setPage }: { setPage: (p: Page) => void }) {
         city: form.city.trim(),
         countryCode: form.countryCode.trim().toUpperCase() || 'AE',
         userId: firebaseUser.uid,
-        userDisplayName: appUser?.displayName || firebaseUser.displayName || firebaseUser.email || 'User',
+        userDisplayName: getSafeDisplayName(appUser) || firebaseUser.email || 'AidiCore Member',
       });
       setCreatedId(id);
       setDone(true);
@@ -950,7 +1033,7 @@ function RecordImpact({ setPage }: { setPage: (p: Page) => void }) {
               <select className="input" value={form.visibility} onChange={(event) => setForm({ ...form, visibility: event.target.value as Visibility })}>
                 <option value="private">{lang === 'ar' ? 'خاص: يظهر لك فقط' : 'Private: only visible to you'}</option>
                 <option value="anonymous_public">{lang === 'ar' ? 'عام بدون اسم بعد الموافقة' : 'Anonymous public after approval'}</option>
-                <option value="public_profile">{lang === 'ar' ? 'عام باسم مستعار لاحقًا' : 'Public alias later'}</option>
+                <option value="public_profile">{copy(lang, 'عام باسم جواز الأثر', 'Public with Impact Passport alias', 'Public avec alias du passeport')}</option>
               </select>
             </div>
           </div>
@@ -1082,7 +1165,7 @@ function Admin() {
               {users.length === 0 ? <div className="card p-6 text-slate-300">No users found yet.</div> : users.map((user) => (
                 <div key={user.uid} className="card flex flex-wrap items-center justify-between gap-4 p-5">
                   <div>
-                    <div className="font-bold text-white">{user.displayName}</div>
+                    <div className="font-bold text-white">{getSafeDisplayName(user)}</div>
                     <div className="text-sm text-slate-400">{user.email} · {user.role} · {user.status}</div>
                   </div>
                   <div className="flex flex-wrap gap-2">

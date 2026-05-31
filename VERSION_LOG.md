@@ -1,5 +1,33 @@
 # AidiCore Version Log
 
+## V1.5.1 - Passport Polish & Data Safety
+
+### Added
+- Added `passportService` as a central Impact Passport identity layer.
+- Added unique alias validation with normalization, reserved-name protection, availability checks, and suggestions.
+- Added predefined friendly avatar library using safe `avatarId` values instead of public user-uploaded images.
+- Added Passport privacy controls: real-name visibility, private passport readiness, and hide contribution categories.
+- Added automatic Growth Stage calculation from approved actions / Impact Index.
+- Added input sanitization for impact record text fields before saving.
+- Added Firestore rule support for alias/passport fields and allowed avatar IDs.
+
+### Changed
+- Updated Profile screen into a stronger Impact Passport experience.
+- Updated Dashboard greeting and impact submissions to prefer safe alias display.
+- Updated admin user cards to avoid exposing real names as the primary identity.
+- Updated package version to `1.5.1`.
+
+### Security & Privacy
+- Alias is now lowercase, URL-safe, 3-20 characters, and checked against reserved system names.
+- Public identity now defaults toward alias-first display.
+- Firestore rules now restrict user-editable passport fields and validate avatar IDs.
+
+### Build Verification
+- `npm install` completed successfully.
+- `npm run build` completed successfully.
+- Vite reported only the existing large bundle warning; no TypeScript errors.
+
+
 ## V1.4.1 - Content & Localization Cleanup
 
 ### Added

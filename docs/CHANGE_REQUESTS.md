@@ -249,3 +249,28 @@ Decision:
 - Merge the fix with the next product step: Impact Passport foundation.
 
 Status: Implemented
+
+
+## 2026-05-31 — Implement V1.5.1 Passport Polish & Data Safety
+
+### Requested By
+Ayman
+
+### Request
+Approve and implement the V1.5.1 roadmap for Impact Passport polish and data safety on top of the existing AidiCore project.
+
+### Decision
+Approved and implemented.
+
+### Implemented
+- Central Passport service.
+- Alias normalization, validation, reserved-name protection, availability checking, and suggestions.
+- Friendly avatar library.
+- Alias-first Passport UI.
+- Privacy controls for real name visibility and contribution categories.
+- Automatic Growth Stage calculation.
+- Firestore rules updated for passport fields.
+- Build verified successfully.
+
+### Status
+Completed in V1.5.1.

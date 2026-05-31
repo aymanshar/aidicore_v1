@@ -80,3 +80,35 @@ For real Firebase mode, the first admin must be bootstrapped manually after sign
 4. Reload the app.
 
 Demo mode automatically grants admin rights to emails containing `admin`.
+
+
+## V1.5.1 Passport Fields
+
+Additional user fields used by Impact Passport:
+
+```ts
+{
+  alias?: string;
+  aliasNormalized?: string;
+  avatarId?: 'seed' | 'leaf' | 'tree' | 'oasis' | 'bridge' | 'hands' | 'heart' | 'book' | 'water' | 'shield';
+  realNameVisible?: boolean;
+  impactPassportEnabled?: boolean;
+  hideContributionCategories?: boolean;
+  growthStage?: 'seed' | 'sprout' | 'plant' | 'tree' | 'forest' | 'oasis';
+  impactCredits?: number;
+  trustScore?: number;
+  updatedAt?: number;
+}
+```
+
+## aliases/{alias}
+
+```ts
+{
+  uid: string;
+  alias: string;
+  updatedAt: number;
+}
+```
+
+Alias documents are used as a lightweight alias registry. The application also checks existing `users.aliasNormalized` values for compatibility with older users.

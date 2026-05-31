@@ -16,6 +16,7 @@ import { db, isFirebaseConfigured } from '../lib/firebase';
 import type { ImpactCategory, ImpactRecord, Visibility } from '../types';
 import { createAuditLog } from './auditService';
 import { buildGroupingKey, calculateFraudScore } from './fraud';
+import { calculateGrowthStage, sanitizeText } from './passportService';
 
 const DEMO_RECORDS_KEY = 'aidicore_demo_impact_records';
 const DEMO_USERS_KEY = 'aidicore_demo_users';
@@ -56,23 +57,43 @@ function writeDemoRecords(records: ImpactRecord[]) {
   localStorage.setItem(DEMO_RECORDS_KEY, JSON.stringify(records));
 }
 
+function withUpdatedImpact(user: any, credits: number) {
+  const approvedActions = (user.approvedActions || 0) + 1;
+  const impactScore = Number(((user.impactScore || 0) + credits).toFixed(2));
+  const impactCredits = Number(((user.impactCredits || user.impactScore || 0) + credits).toFixed(2));
+  return {
+    ...user,
+    approvedActions,
+    impactScore,
+    impactCredits,
+    trustScore: Number(((user.trustScore || 0) + 0.01).toFixed(2)),
+    growthStage: calculateGrowthStage(approvedActions, impactCredits),
+  };
+}
+
 function updateDemoUserImpact(userId: string, credits: number) {
   const rawUsers = localStorage.getItem(DEMO_USERS_KEY);
   const users = rawUsers ? JSON.parse(rawUsers) : [];
-  const nextUsers = users.map((user: any) => user.uid === userId ? { ...user, approvedActions: (user.approvedActions || 0) + 1, impactScore: Number(((user.impactScore || 0) + credits).toFixed(2)), impactCredits: Number(((user.impactCredits || user.impactScore || 0) + credits).toFixed(2)), trustScore: Number(((user.trustScore || 0) + 0.01).toFixed(2)) } : user);
+  const nextUsers = users.map((user: any) => user.uid === userId ? withUpdatedImpact(user, credits) : user);
   localStorage.setItem(DEMO_USERS_KEY, JSON.stringify(nextUsers));
   const current = localStorage.getItem(DEMO_USER_KEY);
   if (current) {
     const currentUser = JSON.parse(current);
-    if (currentUser.uid === userId) {
-      localStorage.setItem(DEMO_USER_KEY, JSON.stringify({ ...currentUser, approvedActions: (currentUser.approvedActions || 0) + 1, impactScore: Number(((currentUser.impactScore || 0) + credits).toFixed(2)), impactCredits: Number(((currentUser.impactCredits || currentUser.impactScore || 0) + credits).toFixed(2)), trustScore: Number(((currentUser.trustScore || 0) + 0.01).toFixed(2)) }));
-    }
+    if (currentUser.uid === userId) localStorage.setItem(DEMO_USER_KEY, JSON.stringify(withUpdatedImpact(currentUser, credits)));
   }
 }
 
 export async function createImpactRecord(input: { userId: string; userDisplayName: string; title: string; category: ImpactCategory; details: string; occurredAt: string; countryCode: string; city: string; visibility: Visibility; }) {
-  const fraud = calculateFraudScore(input as Pick<ImpactRecord, 'title'|'details'|'city'|'category'>);
-  const groupingKey = buildGroupingKey(input.userId, input.category, input.city, input.occurredAt);
+  const safeInput = {
+    ...input,
+    userDisplayName: sanitizeText(input.userDisplayName, 60),
+    title: sanitizeText(input.title, 90),
+    details: sanitizeText(input.details, 700),
+    city: sanitizeText(input.city, 60),
+    countryCode: sanitizeText(input.countryCode, 4).toUpperCase(),
+  };
+  const fraud = calculateFraudScore(safeInput as Pick<ImpactRecord, 'title'|'details'|'city'|'category'>);
+  const groupingKey = buildGroupingKey(safeInput.userId, safeInput.category, safeInput.city, safeInput.occurredAt);
 
   if (!isFirebaseConfigured) {
     const records = readDemoRecords();
@@ -82,7 +103,7 @@ export async function createImpactRecord(input: { userId: string; userDisplayNam
     const finalFraudScore = duplicate ? Math.min(100, fraud.score + 35) : fraud.score;
     records.unshift({
       id,
-      ...input,
+      ...safeInput,
       status: 'pending',
       fraudScore: finalFraudScore,
       impactCredits,
@@ -96,7 +117,7 @@ export async function createImpactRecord(input: { userId: string; userDisplayNam
       createdAt: Date.now(),
     });
     writeDemoRecords(records);
-    await createAuditLog({ actorId: input.userId, action: 'create_impact', targetType: 'impact_record', targetId: id, message: `Created impact record: ${input.title}` });
+    await createAuditLog({ actorId: safeInput.userId, action: 'create_impact', targetType: 'impact_record', targetId: id, message: `Created impact record: ${safeInput.title}` });
     return id;
   }
 
@@ -107,7 +128,7 @@ export async function createImpactRecord(input: { userId: string; userDisplayNam
   const finalFraudScore = duplicate ? Math.min(100, fraud.score + 35) : fraud.score;
 
   const docRef = await addDoc(collection(db, 'impact_records'), {
-    ...input,
+    ...safeInput,
     status: 'pending',
     fraudScore: finalFraudScore,
     impactCredits,
@@ -121,7 +142,7 @@ export async function createImpactRecord(input: { userId: string; userDisplayNam
     createdAt: Date.now(),
     createdAtServer: serverTimestamp(),
   });
-  await createAuditLog({ actorId: input.userId, action: 'create_impact', targetType: 'impact_record', targetId: docRef.id, message: `Created impact record: ${input.title}` }).catch(() => null);
+  await createAuditLog({ actorId: safeInput.userId, action: 'create_impact', targetType: 'impact_record', targetId: docRef.id, message: `Created impact record: ${safeInput.title}` }).catch(() => null);
   return docRef.id;
 }
 
@@ -182,7 +203,11 @@ export async function reviewImpactRecord(id: string, status: 'approved' | 'rejec
   batch.update(recordRef, { status, reviewedBy, auditNote, auditStatus: 'reviewed', reviewedAt: Date.now() });
   if (status === 'approved' && record?.userId) {
     const userRef = doc(db, 'users', record.userId);
-    batch.update(userRef, { approvedActions: increment(1), impactScore: increment(record.impactCredits || 0.1), impactCredits: increment(record.impactCredits || 0.1), trustScore: increment(0.01) });
+    const userSnap = await getDoc(userRef);
+    const user = userSnap.exists() ? userSnap.data() : {};
+    const nextApproved = (user.approvedActions || 0) + 1;
+    const nextCredits = Number(((user.impactCredits || user.impactScore || 0) + (record.impactCredits || 0.1)).toFixed(2));
+    batch.update(userRef, { approvedActions: increment(1), impactScore: increment(record.impactCredits || 0.1), impactCredits: increment(record.impactCredits || 0.1), trustScore: increment(0.01), growthStage: calculateGrowthStage(nextApproved, nextCredits) });
   }
   await batch.commit();
   await createAuditLog({ actorId: reviewedBy, actorEmail, action: status === 'approved' ? 'approve_impact' : 'reject_impact', targetType: 'impact_record', targetId: id, message: auditNote || `Record ${status}` });

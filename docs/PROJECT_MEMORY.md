@@ -204,3 +204,26 @@ Important rule: keep sensitive-data prevention close to the form and later add s
 ## Decision - Impact Passport Foundation
 
 The profile page is no longer treated as a technical account form. It is now the beginning of the Impact Passport concept. Users should not edit technical avatar URLs, roles, statuses, or emails. They may control safe public-facing identity fields such as display name, symbolic alias, and future sharing preferences. Impact Passport remains private by default until explicit private share links are implemented.
+
+
+## V1.5.1 Passport Decision
+
+The old Profile concept is now replaced by Impact Passport as the primary identity model. The passport must remain privacy-first and alias-first.
+
+Approved implementation decisions:
+
+- User-uploaded public avatars are not part of V1.5.1. Use `avatarId` from a predefined avatar registry.
+- Alias must be normalized to lowercase letters, numbers, and underscores only.
+- Reserved aliases such as `admin`, `support`, `system`, `aidicore`, `official`, and `moderator` are blocked.
+- Real name is optional and controlled by `realNameVisible`.
+- Growth Stage is calculated from sustained contribution, not manually assigned.
+- Impact Passport is symbolic and must not become a popularity profile.
+
+Current Growth Stages:
+
+- Seed
+- Sprout
+- Plant
+- Tree
+- Forest
+- Oasis

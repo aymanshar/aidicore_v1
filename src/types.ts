@@ -1,6 +1,7 @@
 export type Language = 'en' | 'ar' | 'fr';
 export type UserRole = 'user' | 'moderator' | 'admin' | 'super_admin';
 export type UserStatus = 'active' | 'suspended';
+export type GrowthStage = 'seed' | 'sprout' | 'plant' | 'tree' | 'forest' | 'oasis';
 export type ImpactStatus = 'pending' | 'approved' | 'rejected';
 export type Visibility = 'private' | 'anonymous_public' | 'public_profile';
 export type ImpactCategory = 'community_service' | 'blood_donation' | 'visiting_patients' | 'helping_seniors' | 'mental_support' | 'anti_bullying' | 'environment' | 'education' | 'volunteer_work' | 'emergency_help';
@@ -11,14 +12,17 @@ export interface AppUser {
   email: string;
   role: UserRole;
   avatarUrl?: string | null;
+  avatarId?: string;
   impactScore: number;
   impactCredits?: number;
   trustScore?: number;
   approvedActions: number;
   alias?: string;
+  aliasNormalized?: string;
   realNameVisible?: boolean;
   impactPassportEnabled?: boolean;
-  growthStage?: 'seed' | 'sprout' | 'plant' | 'tree' | 'forest' | 'oasis';
+  hideContributionCategories?: boolean;
+  growthStage?: GrowthStage;
   createdAt: number;
   lastLogin: number;
   status: UserStatus;

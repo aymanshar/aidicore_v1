@@ -6,24 +6,53 @@ service cloud.firestore {
     function isModerator() { return signedIn() && userDoc().data.role in ['moderator', 'admin', 'super_admin']; }
     function isAdmin() { return signedIn() && userDoc().data.role in ['admin', 'super_admin']; }
     function isSuperAdmin() { return signedIn() && userDoc().data.role == 'super_admin'; }
+    function validAlias(value) { return value is string && value.size() >= 3 && value.size() <= 20 && value.matches('^[a-z0-9_]+$'); }
+    function validAvatar(value) { return value in ['seed', 'leaf', 'tree', 'oasis', 'bridge', 'hands', 'heart', 'book', 'water', 'shield']; }
 
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isModerator());
       allow create: if signedIn()
         && request.auth.uid == uid
         && request.resource.data.role == 'user'
-        && request.resource.data.status == 'active';
+        && request.resource.data.status == 'active'
+        && (!('aliasNormalized' in request.resource.data) || validAlias(request.resource.data.aliasNormalized))
+        && (!('avatarId' in request.resource.data) || validAvatar(request.resource.data.avatarId));
       allow update: if signedIn() && (
         (request.auth.uid == uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'avatarUrl', 'lastLogin'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'displayName',
+            'avatarId',
+            'avatarUrl',
+            'alias',
+            'aliasNormalized',
+            'realNameVisible',
+            'impactPassportEnabled',
+            'hideContributionCategories',
+            'growthStage',
+            'updatedAt',
+            'lastLogin',
+            'lastLoginServer',
+            'email',
+            'emailVerified'
+          ])
           && request.resource.data.role == resource.data.role
-          && request.resource.data.status == resource.data.status)
+          && request.resource.data.status == resource.data.status
+          && (!('aliasNormalized' in request.resource.data) || validAlias(request.resource.data.aliasNormalized))
+          && (!('avatarId' in request.resource.data) || validAvatar(request.resource.data.avatarId)))
         || (isAdmin()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'status'])
           && (!(resource.data.role == 'super_admin' || request.resource.data.role == 'super_admin') || isSuperAdmin()))
         || (isModerator()
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approvedActions', 'impactScore']))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approvedActions', 'impactScore', 'impactCredits', 'trustScore', 'growthStage']))
       );
+      allow delete: if false;
+    }
+
+    match /aliases/{alias} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && validAlias(alias)
+        && request.resource.data.uid == request.auth.uid;
       allow delete: if false;
     }
 

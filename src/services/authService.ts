@@ -17,6 +17,7 @@ import { auth, db, isFirebaseConfigured } from '../lib/firebase';
 import type { AppUser, UserRole } from '../types';
 import { createAuditLog } from './auditService';
 import { upsertDemoUser } from './userService';
+import { calculateGrowthStage, normalizeAlias, savePassportProfile, suggestAliases } from './passportService';
 
 const DEMO_USER_KEY = 'aidicore_demo_user';
 const demoEvents = new EventTarget();
@@ -38,10 +39,13 @@ function makeDemoUser(email: string, displayName?: string): AppUser {
     impactCredits: 0,
     trustScore: 0,
     approvedActions: 0,
-    alias: 'New Seed',
+    alias: suggestAliases(displayName || email)[0] || 'community_seed',
+    aliasNormalized: normalizeAlias(suggestAliases(displayName || email)[0] || 'community_seed'),
+    avatarId: 'seed',
     realNameVisible: false,
     impactPassportEnabled: false,
-    growthStage: 'seed',
+    hideContributionCategories: false,
+    growthStage: calculateGrowthStage(0, 0),
     createdAt: Date.now(),
     lastLogin: Date.now(),
     status: 'active',
@@ -82,15 +86,18 @@ function buildUserDoc(user: User, role: UserRole = 'user'): AppUser {
     displayName: user.displayName || user.email?.split('@')[0] || 'AidiCore User',
     email: user.email || '',
     avatarUrl: user.photoURL || null,
+    avatarId: 'seed',
     role,
     impactScore: 0,
     impactCredits: 0,
     trustScore: 0,
     approvedActions: 0,
-    alias: 'New Seed',
+    alias: suggestAliases(user.displayName || user.email)[0] || 'community_seed',
+    aliasNormalized: normalizeAlias(suggestAliases(user.displayName || user.email)[0] || 'community_seed'),
     realNameVisible: false,
     impactPassportEnabled: false,
-    growthStage: 'seed',
+    hideContributionCategories: false,
+    growthStage: calculateGrowthStage(0, 0),
     createdAt: Date.now(),
     lastLogin: Date.now(),
     status: 'active',
@@ -104,13 +111,18 @@ async function ensureUserDocument(user: User, role: UserRole = 'user') {
   const ref = doc(db, 'users', user.uid);
   const snap = await getDoc(ref);
   if (!snap.exists()) {
-    await setDoc(ref, { ...buildUserDoc(user, role), createdAtServer: serverTimestamp(), lastLoginServer: serverTimestamp() });
+    const newUser = buildUserDoc(user, role);
+    await setDoc(ref, { ...newUser, createdAtServer: serverTimestamp(), lastLoginServer: serverTimestamp() });
     return;
   }
   await updateDoc(ref, {
     displayName: user.displayName || snap.data().displayName || user.email?.split('@')[0] || 'AidiCore User',
     email: user.email || snap.data().email || '',
     avatarUrl: user.photoURL || snap.data().avatarUrl || null,
+    avatarId: snap.data().avatarId || 'seed',
+    aliasNormalized: snap.data().aliasNormalized || normalizeAlias(snap.data().alias || user.displayName || user.email || 'community_seed'),
+    hideContributionCategories: Boolean(snap.data().hideContributionCategories),
+    growthStage: snap.data().growthStage || calculateGrowthStage(snap.data().approvedActions || 0, snap.data().impactCredits || snap.data().impactScore || 0),
     emailVerified: user.emailVerified,
     lastLogin: Date.now(),
     lastLoginServer: serverTimestamp(),
@@ -212,21 +224,14 @@ export async function getAppUser(uid: string): Promise<AppUser | null> {
   return snap.exists() ? (snap.data() as AppUser) : null;
 }
 
-export async function updateCurrentUserProfile(user: User, updates: { displayName: string; alias?: string; realNameVisible?: boolean; impactPassportEnabled?: boolean }) {
+export async function updateCurrentUserProfile(user: User, updates: { displayName: string; alias: string; realNameVisible: boolean; impactPassportEnabled: boolean; avatarId: string; hideContributionCategories: boolean }) {
+  const current = await getAppUser(user.uid);
+  if (!current) throw new Error('User profile was not found.');
+  const saved = await savePassportProfile(current, updates);
   if (!isFirebaseConfigured) {
-    const current = readDemoUser();
-    if (!current) return;
-    const next = { ...current, displayName: updates.displayName, alias: updates.alias || current.alias || 'New Seed', realNameVisible: !!updates.realNameVisible, impactPassportEnabled: !!updates.impactPassportEnabled };
-    writeDemoUser(next);
-    await createAuditLog({ actorId: next.uid, actorEmail: next.email, action: 'update_profile', targetType: 'user', targetId: next.uid, message: 'Updated demo profile' });
-    return;
+    writeDemoUser({ ...current, ...saved });
+  } else {
+    await updateProfile(user, { displayName: saved.displayName }).catch(() => null);
   }
-  await updateProfile(user, { displayName: updates.displayName });
-  await updateDoc(doc(db, 'users', user.uid), {
-    displayName: updates.displayName,
-    alias: updates.alias || 'New Seed',
-    realNameVisible: !!updates.realNameVisible,
-    impactPassportEnabled: !!updates.impactPassportEnabled,
-  });
-  await createAuditLog({ actorId: user.uid, actorEmail: user.email || undefined, action: 'update_profile', targetType: 'user', targetId: user.uid, message: 'Updated profile' }).catch(() => null);
+  await createAuditLog({ actorId: user.uid, actorEmail: user.email || undefined, action: 'update_profile', targetType: 'user', targetId: user.uid, message: 'Updated Impact Passport profile' }).catch(() => null);
 }

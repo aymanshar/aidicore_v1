@@ -154,3 +154,24 @@
 - Add one-time-view share links.
 - Add visual avatar themes based on growth stages.
 - Keep Impact Passport private by default.
+
+
+## V1.5.1 — Passport Polish & Data Safety ✅
+- Unique alias validation and availability checker.
+- Reserved alias protection.
+- Alias suggestions.
+- Friendly predefined avatar selection.
+- Real-name visibility toggle.
+- Passport readiness toggle.
+- Hide contribution categories toggle.
+- Impact Passport UI redesign.
+- Central Growth Stage calculator.
+- Firestore rules updated for passport fields.
+- Basic input sanitization before impact record creation.
+
+## V1.5.2 — Trustworthy Passport Experience
+- Passport journey timeline.
+- Contribution summary by category.
+- Non-social contribution badges.
+- Printable / PDF passport.
+- Temporary passport preview link foundation.

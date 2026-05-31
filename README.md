@@ -7,7 +7,7 @@ AidiCore is rebuilt from scratch as a React + TypeScript + Firebase product, usi
 
 ## Current Version
 
-**V1.3.0 — Impact Engine**
+**V1.5.1 — Passport Polish & Data Safety**
 
 This version fixes the first real Firebase signup issue found after enabling Google Login and Email Verification. User documents now avoid unsupported `undefined` values in Firestore, especially for missing avatar URLs.
 
@@ -184,3 +184,21 @@ For Google Login on the custom domain, add these to Firebase Authentication → 
 ## V1.5.0 Update
 
 This release introduces the first Impact Passport foundation and fixes the profile page so users no longer see or edit raw technical fields such as `avatarUrl`. The profile experience now focuses on safe identity: display name, symbolic alias, growth stage, and future private sharing preferences.
+
+
+## Current Version
+
+**V1.5.1 — Passport Polish & Data Safety**
+
+This version converts the previous profile foundation into a stronger privacy-first Impact Passport experience. It adds alias validation, reserved-name protection, alias availability checking, avatar selection from a safe predefined library, privacy controls, and automatic Growth Stage calculation.
+
+### V1.5.1 Highlights
+
+- Impact Passport replaces Profile as the user-facing identity concept.
+- Alias-first identity with unique `aliasNormalized` support.
+- Friendly `avatarId` selection instead of public user-uploaded avatar URLs.
+- Real-name visibility toggle.
+- Passport readiness toggle.
+- Hide contribution categories toggle.
+- Growth Stage calculator: Seed, Sprout, Plant, Tree, Forest, Oasis.
+- Firestore rules updated for Passport safety.
