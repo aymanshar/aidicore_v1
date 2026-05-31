@@ -31,13 +31,16 @@ import {
   listPendingImpactRecords,
   listPublicImpactRecords,
   reviewImpactRecord,
+  updateImpactRecordStatus,
+  deleteImpactRecord,
   getCommunityImpactStats,
 } from './services/impactService';
 import { listAuditLogs } from './services/auditService';
 import { getSettings, saveSettings } from './services/settingsService';
 import { deleteUserProfile, listUsers, updateUserRole, updateUserStatus } from './services/userService';
+import { confirmVerificationLink, createVerificationLink, listVerificationLinks } from './services/verificationService';
 import { AVATARS, calculateGrowthStage, getAvatar, getSafeDisplayName, isAliasAvailable, normalizeAlias, suggestAliases, validateAlias } from './services/passportService';
-import type { AppSettings, AppUser, AuditLog, CommunityImpactStats, ImpactCategory, ImpactRecord, UserRole, UserStatus, Visibility } from './types';
+import type { AppSettings, AppUser, AuditLog, CommunityImpactStats, ImpactCategory, ImpactRecord, ImpactVerification, UserRole, UserStatus, Visibility } from './types';
 
 export type Page =
   | 'home'
@@ -51,6 +54,7 @@ export type Page =
   | 'record'
   | 'profile'
   | 'admin'
+  | 'verify'
   | 'privacy'
   | 'terms'
   | 'contact';
@@ -62,7 +66,7 @@ const fade = {
 };
 
 function Shell() {
-  const [page, setPage] = useState<Page>('home');
+  const [page, setPage] = useState<Page>(() => new URLSearchParams(window.location.search).has('verify') ? 'verify' : 'home');
   return (
     <Layout page={page} setPage={setPage}>
       <Router page={page} setPage={setPage} />
@@ -82,6 +86,7 @@ function Router({ page, setPage }: { page: Page; setPage: (page: Page) => void }
   if (page === 'record') return <RecordImpact setPage={setPage} />;
   if (page === 'profile') return <Profile setPage={setPage} />;
   if (page === 'admin') return <Admin />;
+  if (page === 'verify') return <VerifyImpact />;
   return <SimplePage page={page} />;
 }
 
@@ -1167,6 +1172,7 @@ function Admin() {
   const [allRecords, setAllRecords] = useState<ImpactRecord[]>([]);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [verifications, setVerifications] = useState<ImpactVerification[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
   const [actionMessage, setActionMessage] = useState('');
@@ -1179,18 +1185,20 @@ function Admin() {
       return;
     }
     setLoading(true);
-    const [pending, all, appUsers, auditItems, appSettings] = await Promise.all([
+    const [pending, all, appUsers, auditItems, appSettings, verificationItems] = await Promise.all([
       listPendingImpactRecords().catch(() => []),
       listAllImpactRecords().catch(() => []),
       listUsers().catch(() => []),
       listAuditLogs().catch(() => []),
       getSettings().catch(() => null),
+      listVerificationLinks().catch(() => []),
     ]);
     setRecords(pending);
     setAllRecords(all);
     setUsers(appUsers);
     setLogs(auditItems);
     setSettings(appSettings);
+    setVerifications(verificationItems);
     setLoading(false);
   };
 
@@ -1213,6 +1221,33 @@ function Admin() {
     setReviewNotes((prev) => ({ ...prev, [record.id]: '' }));
     setActionMessage(status === 'approved' ? copy(lang, 'تم اعتماد الأثر.', 'Impact approved.', 'Impact approuvé.') : copy(lang, 'تم رفض الأثر.', 'Impact rejected.', 'Impact rejeté.'));
     await loadAdminData();
+  };
+
+
+  const changeRecordStatus = async (record: ImpactRecord, status: ImpactRecord['status']) => {
+    const note = reviewNotes[record.id]?.trim() || `Manual status change to ${status}`;
+    setActionMessage('');
+    await updateImpactRecordStatus(record.id, status, firebaseUser!.uid, firebaseUser?.email || undefined, note);
+    setActionMessage(copy(lang, 'تم تحديث حالة السجل.', 'Record status updated.', 'Statut mis à jour.'));
+    await loadAdminData();
+  };
+
+  const removeImpactRecord = async (record: ImpactRecord) => {
+    if (appUser?.role !== 'super_admin') return;
+    const ok = window.confirm(copy(lang, `حذف سجل الأثر: ${record.title}؟`, `Delete impact record: ${record.title}?`, `Supprimer cette contribution : ${record.title} ?`));
+    if (!ok) return;
+    setActionMessage('');
+    await deleteImpactRecord(record.id, firebaseUser!.uid, firebaseUser?.email || undefined);
+    setActionMessage(copy(lang, 'تم حذف سجل الأثر.', 'Impact record deleted.', 'Contribution supprimée.'));
+    await loadAdminData();
+  };
+
+  const makeVerificationLink = async (record: ImpactRecord) => {
+    setActionMessage('');
+    const result = await createVerificationLink(record, firebaseUser!.uid, firebaseUser?.email || undefined);
+    const link = `${window.location.origin}?verify=${result.id}&token=${result.token}`;
+    await navigator.clipboard?.writeText(link).catch(() => null);
+    setActionMessage(copy(lang, 'تم إنشاء رابط التزكية ونسخه. التأكيد لا يعتمد السجل وحده.', 'Verification link created and copied. Verification does not approve the record by itself.', 'Lien de vérification créé et copié.'));
   };
 
   const updateRole = async (uid: string, role: UserRole) => {
@@ -1254,6 +1289,8 @@ function Admin() {
   const normalizedRecords = allRecords.map((record) => ({ ...record, status: (record.status || 'pending').toLowerCase() as ImpactRecord['status'] }));
   const visibleRecords = normalizedRecords.filter((record) => recordFilter === 'all' || record.status === recordFilter);
   const pendingCount = normalizedRecords.filter((record) => record.status === 'pending').length;
+  const flaggedVerificationCount = verifications.filter((item) => item.status === 'flagged' || item.status === 'rejected' || item.riskFlags?.length).length;
+  const duplicateEmails = new Set(users.map((user) => user.email).filter((email, index, arr) => email && arr.indexOf(email) !== index));
 
   const statusLabel = (status: ImpactRecord['status']) => status === 'approved'
     ? copy(lang, 'معتمد', 'Approved', 'Approuvé')
@@ -1277,12 +1314,13 @@ function Admin() {
       {loading ? <div className="card p-6 text-slate-300">Loading admin data...</div> : (
         <>
           {tab === 'overview' && (
-            <div className="grid gap-4 md:grid-cols-5">
+            <div className="grid gap-4 md:grid-cols-6">
               <Metric title={lang === 'ar' ? 'قيد المراجعة' : 'Pending Review'} value={String(pendingCount)} />
               <Metric title={copy(lang, 'معتمد', 'Approved', 'Approuvé')} value={String(approved)} />
               <Metric title={lang === 'ar' ? 'اعتمد اليوم' : 'Approved Today'} value={String(approvedToday)} />
               <Metric title={lang === 'ar' ? 'مرفوض' : 'Rejected'} value={String(rejected)} />
               <Metric title={lang === 'ar' ? 'المستخدمون' : 'Users'} value={String(users.length)} />
+              <Metric title={copy(lang, 'تزكيات مشبوهة', 'Flagged Verifications', 'Vérifications signalées')} value={String(flaggedVerificationCount)} />
             </div>
           )}
 
@@ -1328,9 +1366,16 @@ function Admin() {
                       placeholder={copy(lang, 'ملاحظات المراجعة للإدارة...', 'Admin moderation note...', 'Note de modération...')}
                       onChange={(event) => setReviewNotes((prev) => ({ ...prev, [record.id]: event.target.value }))}
                     />
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select className="input !w-auto !py-2" value={record.status} onChange={(event) => changeRecordStatus(record, event.target.value as ImpactRecord['status'])}>
+                        <option value="pending">pending</option>
+                        <option value="approved">approved</option>
+                        <option value="rejected">rejected</option>
+                      </select>
+                      <button className="btn-soft !py-2" onClick={() => makeVerificationLink(record)}>{copy(lang, 'رابط تزكية', 'Verify link', 'Lien vérif.')}</button>
                       <button className="btn-soft !py-2" onClick={() => review(record, 'rejected')}>{copy(lang, 'رفض', 'Reject', 'Rejeter')}</button>
                       <button className="btn-primary !py-2" onClick={() => review(record, 'approved')}>{copy(lang, 'اعتماد', 'Approve', 'Approuver')}</button>
+                      {appUser?.role === 'super_admin' && <button className="btn-soft !py-2 text-red-200" onClick={() => removeImpactRecord(record)}><Trash2 size={16} />{copy(lang, 'حذف', 'Delete', 'Supprimer')}</button>}
                     </div>
                   </div>
                 </div>
@@ -1340,12 +1385,14 @@ function Admin() {
 
           {tab === 'users' && (
             <div className="grid gap-3">
+              {duplicateEmails.size > 0 && <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 text-sm text-amber-100">{copy(lang, 'تنبيه: يوجد أكثر من ملف مستخدم لنفس البريد. راجع UID قبل الحذف.', 'Warning: multiple user profile documents share the same email. Check UID before deleting.', 'Attention : plusieurs profils partagent le même e-mail.')}</div>}
               {users.length === 0 ? <div className="card p-6 text-slate-300">No users found yet.</div> : users.map((user) => (
                 <div key={user.uid} className="card flex flex-wrap items-center justify-between gap-4 p-5">
                   <div>
                     <div className="font-bold text-white">{getSafeDisplayName(user)}</div>
                     <div className="text-sm text-slate-400">{user.email} · {user.role} · {user.status} · {copy(lang, 'مؤشر', 'Index', 'Indice')} {Number(user.impactCredits ?? user.impactScore ?? 0).toFixed(1)}</div>
                     <div className="mt-1 text-xs text-slate-600">UID: {user.uid}</div>
+                    <div className="mt-1 text-xs text-slate-500">{copy(lang, 'الثقة', 'Trust', 'Confiance')}: {Number(user.trustScore || 0).toFixed(2)} · {copy(lang, 'مخاطر التزكية', 'Verification risk', 'Risque')}: {Number(user.trustRiskScore || 0).toFixed(2)} {duplicateEmails.has(user.email) ? '· duplicate-email' : ''}</div>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <select className="input !w-auto !py-2" value={user.role} onChange={(event) => updateRole(user.uid, event.target.value as UserRole)} disabled={appUser?.role !== 'super_admin' && user.role === 'super_admin'}>
@@ -1371,6 +1418,14 @@ function Admin() {
 
           {tab === 'logs' && (
             <div className="grid gap-3">
+              <div className="card p-5">
+                <h3 className="mb-3 font-bold">{copy(lang, 'سجل التزكيات', 'Verification activity', 'Activité de vérification')}</h3>
+                {verifications.length === 0 ? <p className="text-sm text-slate-400">{copy(lang, 'لا توجد تزكيات بعد.', 'No verification links yet.', 'Aucune vérification.')}</p> : verifications.slice(0, 8).map((item) => (
+                  <div key={item.id} className="border-t border-white/10 py-3 text-sm text-slate-300">
+                    {item.status} · weight {Number(item.weight || 0).toFixed(2)} · penalty {Number(item.penalty || 0).toFixed(2)} · {item.riskFlags?.join(', ') || 'no flags'}
+                  </div>
+                ))}
+              </div>
               {logs.length === 0 ? <div className="card p-6 text-slate-300">No audit logs yet.</div> : logs.map((log) => (
                 <div key={log.id} className="card p-5">
                   <div className="flex flex-wrap justify-between gap-3">
@@ -1407,6 +1462,52 @@ function Admin() {
   );
 }
 
+function VerifyImpact() {
+  const { firebaseUser, appUser } = useAuth();
+  const { lang } = useLanguage();
+  const [status, setStatus] = useState<'idle' | 'working' | 'done' | 'error'>('idle');
+  const [message, setMessage] = useState('');
+
+  const params = new URLSearchParams(window.location.search);
+  const verificationId = params.get('verify') || '';
+  const token = params.get('token') || '';
+
+  const confirm = async () => {
+    if (!firebaseUser || !appUser) {
+      setStatus('error');
+      setMessage(copy(lang, 'سجل الدخول أولاً لتأكيد الأثر. لا يمكن لصاحب الأثر تأكيد فعله بنفسه.', 'Please log in first to verify this impact. The owner cannot verify their own action.', 'Veuillez vous connecter pour confirmer cette action.'));
+      return;
+    }
+    setStatus('working');
+    try {
+      const result = await confirmVerificationLink(verificationId, token, { uid: firebaseUser.uid, email: firebaseUser.email || undefined, createdAt: appUser.createdAt });
+      setStatus(result.status === 'rejected' ? 'error' : 'done');
+      setMessage(result.status === 'rejected'
+        ? copy(lang, 'تم رفض التزكية لأنها مخالفة لقواعد الثقة، مثل محاولة تأكيد الشخص لنفسه.', 'Verification rejected by trust rules, such as self-verification.', 'Vérification rejetée par les règles de confiance.')
+        : result.riskFlags.length
+          ? copy(lang, 'تم تسجيل التزكية مع علامة مراجعة لأنها تبدو متكررة أو مشبوهة.', 'Verification recorded with a review flag because it may be repeated or suspicious.', 'Vérification enregistrée avec signalement.')
+          : copy(lang, 'تم تأكيد الأثر. التزكية تساعد الثقة لكنها لا تعتمد السجل وحدها.', 'Impact verified. Verification helps trust but does not approve the record by itself.', 'Action confirmée.'));
+    } catch (error) {
+      setStatus('error');
+      setMessage(error instanceof Error ? error.message : copy(lang, 'تعذر تأكيد الرابط.', 'Could not verify this link.', 'Impossible de confirmer ce lien.'));
+    }
+  };
+
+  return (
+    <Section>
+      <div className="card mx-auto grid max-w-2xl gap-5 p-8 text-center">
+        <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-emerald-400/10 text-emerald-200"><HeartHandshake size={30} /></div>
+        <Title title={copy(lang, 'تأكيد أثر مجتمعي', 'Verify Community Impact', 'Confirmer une action')} text={copy(lang, 'التزكية تضيف إشارة ثقة صغيرة ولا تعتمد السجل وحدها.', 'Verification adds a small trust signal and never approves a record by itself.', 'La vérification ajoute un faible signal de confiance.')} />
+        {!verificationId || !token ? <p className="text-red-200">{copy(lang, 'الرابط غير مكتمل.', 'Incomplete verification link.', 'Lien incomplet.')}</p> : null}
+        {message && <p className={`rounded-2xl border p-3 text-sm ${status === 'done' ? 'border-emerald-400/20 bg-emerald-500/10 text-emerald-100' : 'border-amber-400/20 bg-amber-500/10 text-amber-100'}`}>{message}</p>}
+        <button className="btn-primary justify-center" disabled={status === 'working' || !verificationId || !token} onClick={confirm}>
+          {status === 'working' ? copy(lang, 'جارٍ التأكيد...', 'Verifying...', 'Vérification...') : copy(lang, 'تأكيد الأثر', 'Verify Impact', 'Confirmer')}
+        </button>
+      </div>
+    </Section>
+  );
+}
+
 function SimplePage({ page }: { page: Page }) {
   const { lang } = useLanguage();
   const titles = useMemo<Record<Page, string>>(() => ({
@@ -1421,13 +1522,14 @@ function SimplePage({ page }: { page: Page }) {
     record: copy(lang, 'سجّل أثرًا', 'Record Impact', 'Enregistrer un impact'),
     profile: copy(lang, 'جواز الأثر', 'Impact Passport', 'Passeport d’impact'),
     admin: copy(lang, 'الإدارة', 'Admin', 'Administration'),
+    verify: copy(lang, 'تأكيد الأثر', 'Verify Impact', 'Confirmer'),
     privacy: copy(lang, 'سياسة الخصوصية', 'Privacy Policy', 'Politique de confidentialité'),
     terms: copy(lang, 'شروط الاستخدام', 'Terms of Use', 'Conditions d’utilisation'),
     contact: copy(lang, 'تواصل معنا', 'Contact', 'Contact'),
   }), [lang]);
 
   const descriptions = useMemo<Record<Page, string>>(() => ({
-    home: '', about: '', actions: '', rules: '', impact: '', login: '', signup: '', dashboard: '', record: '', profile: '', admin: '',
+    home: '', about: '', actions: '', rules: '', impact: '', login: '', signup: '', dashboard: '', record: '', profile: '', admin: '', verify: '',
     privacy: copy(lang, 'نوضح كيف نحمي البيانات ونقلل جمع المعلومات الشخصية داخل AidiCore.', 'How AidiCore protects data and minimizes personal information collection.', 'Comment AidiCore protège les données et limite la collecte d’informations personnelles.'),
     terms: copy(lang, 'استخدام المنصة يعني الالتزام بالخصوصية وعدم إساءة استخدام نظام الأثر.', 'Using the platform means respecting privacy and not abusing the impact system.', 'L’utilisation de la plateforme implique le respect de la confidentialité et du système d’impact.'),
     contact: copy(lang, 'للاقتراحات أو الدعم أو الشراكات، تواصل معنا عبر القنوات الرسمية للمشروع.', 'For support, ideas, or partnerships, contact us through official AidiCore channels.', 'Pour le support, les idées ou les partenariats, contactez-nous via les canaux officiels d’AidiCore.'),

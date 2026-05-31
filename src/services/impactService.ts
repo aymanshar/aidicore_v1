@@ -2,6 +2,7 @@ import {
   addDoc,
   collection,
   doc,
+  deleteDoc,
   getDoc,
   getDocs,
   increment,
@@ -10,10 +11,11 @@ import {
   query,
   serverTimestamp,
   where,
+  updateDoc,
   writeBatch,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../lib/firebase';
-import type { ImpactCategory, ImpactRecord, Visibility } from '../types';
+import type { ImpactCategory, ImpactRecord, ImpactStatus, Visibility } from '../types';
 import { createAuditLog } from './auditService';
 import { buildGroupingKey, calculateFraudScore } from './fraud';
 import { calculateGrowthStage, sanitizeText } from './passportService';
@@ -215,6 +217,27 @@ export async function reviewImpactRecord(id: string, status: 'approved' | 'rejec
   }
   await batch.commit();
   await createAuditLog({ actorId: reviewedBy, actorEmail, action: status === 'approved' ? 'approve_impact' : 'reject_impact', targetType: 'impact_record', targetId: id, message: auditNote || `Record ${status}` });
+}
+
+
+export async function updateImpactRecordStatus(id: string, status: ImpactStatus, actorId: string, actorEmail?: string, auditNote = 'Status updated manually by admin.') {
+  if (!isFirebaseConfigured) {
+    const records = readDemoRecords().map((record) => record.id === id ? { ...record, status, auditNote, auditStatus: 'reviewed' as const, reviewedAt: Date.now(), reviewedBy: actorId } : record);
+    writeDemoRecords(records);
+  } else {
+    const recordRef = doc(db, 'impact_records', id);
+    await updateDoc(recordRef, { status, auditNote, auditStatus: 'reviewed', reviewedAt: Date.now(), reviewedBy: actorId });
+  }
+  await createAuditLog({ actorId, actorEmail, action: 'update_impact_status', targetType: 'impact_record', targetId: id, message: `${auditNote} New status: ${status}` });
+}
+
+export async function deleteImpactRecord(id: string, actorId: string, actorEmail?: string) {
+  if (!isFirebaseConfigured) {
+    writeDemoRecords(readDemoRecords().filter((record) => record.id !== id));
+  } else {
+    await deleteDoc(doc(db, 'impact_records', id));
+  }
+  await createAuditLog({ actorId, actorEmail, action: 'delete_impact_record', targetType: 'impact_record', targetId: id, message: 'Deleted impact record from admin console' });
 }
 
 export async function getCommunityImpactStats() {

@@ -220,3 +220,12 @@ V1.6.0 — Admin Review Center + Passport Stable Polish.
 - Added UID and impact index visibility in Admin Users for debugging duplicate user documents.
 - Updated Firestore rules to allow super admin user profile deletion and alias cleanup.
 - Clarified that deleting a user profile from Firestore does not delete the Firebase Auth account.
+
+
+## V1.7.0 Trust Verification Foundation
+
+- Added admin-side impact record delete and manual status control.
+- Added verification link foundation for impact confirmation.
+- Added anti-collusion rules: self-verification is blocked, repeated verifier-owner patterns are flagged, and suspicious confirmations can apply negative trust penalties.
+- Added admin visibility for verification risk flags and duplicate-email warning.
+- Kept public ranking disabled; trust/risk indicators remain internal/admin-oriented.

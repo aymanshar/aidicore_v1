@@ -1,6 +1,7 @@
 export type Language = 'en' | 'ar' | 'fr';
 export type UserRole = 'user' | 'moderator' | 'admin' | 'super_admin';
 export type UserStatus = 'active' | 'suspended';
+export type VerificationStatus = 'pending' | 'confirmed' | 'rejected' | 'expired' | 'flagged';
 export type GrowthStage = 'seed' | 'sprout' | 'plant' | 'tree' | 'forest' | 'oasis';
 export type ImpactStatus = 'pending' | 'approved' | 'rejected';
 export type Visibility = 'private' | 'anonymous_public' | 'public_profile';
@@ -16,6 +17,9 @@ export interface AppUser {
   impactScore: number;
   impactCredits?: number;
   trustScore?: number;
+  trustRiskScore?: number;
+  verificationPenalty?: number;
+  riskFlags?: string[];
   approvedActions: number;
   alias?: string;
   aliasNormalized?: string;
@@ -55,7 +59,28 @@ export interface ImpactRecord {
   createdAt: number;
   reviewedAt?: number;
   reviewedBy?: string;
+  verificationCount?: number;
+  verificationWeight?: number;
+  verificationRiskFlags?: string[];
 }
+
+export interface ImpactVerification {
+  id: string;
+  impactId: string;
+  impactOwnerId: string;
+  verifierId?: string;
+  verifierEmail?: string;
+  tokenHash: string;
+  status: VerificationStatus;
+  weight: number;
+  penalty: number;
+  riskFlags: string[];
+  createdAt: number;
+  expiresAt: number;
+  confirmedAt?: number;
+  createdBy: string;
+}
+
 
 export interface CommunityImpactStats {
   totalRecords: number;
@@ -87,7 +112,14 @@ export type AuditAction =
   | 'update_profile'
   | 'update_user_role'
   | 'update_user_status'
-  | 'update_settings';
+  | 'update_settings'
+  | 'delete_user_profile'
+  | 'delete_impact_record'
+  | 'update_impact_status'
+  | 'create_verification_link'
+  | 'confirm_impact_verification'
+  | 'reject_impact_verification'
+  | 'flag_verification_risk';
 
 export interface AuditLog {
   id: string;

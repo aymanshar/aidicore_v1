@@ -49,7 +49,7 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'status'])
           && (!(resource.data.role == 'super_admin' || request.resource.data.role == 'super_admin') || isSuperAdmin()))
         || (isModerator()
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approvedActions', 'impactScore', 'impactCredits', 'trustScore', 'growthStage']))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approvedActions', 'impactScore', 'impactCredits', 'trustScore', 'trustRiskScore', 'verificationPenalty', 'riskFlags', 'growthStage']))
       );
       allow delete: if isSuperAdmin() && request.auth.uid != uid;
     }
@@ -82,7 +82,21 @@ service cloud.firestore {
         && request.resource.data.status == 'pending'
         && request.resource.data.visibility in ['private', 'anonymous_public', 'public_profile'];
       allow update: if isModerator();
-      allow delete: if false;
+      allow delete: if isSuperAdmin();
+    }
+
+    match /impact_verifications/{id} {
+      allow read: if isModerator() || (signedIn() && (resource.data.impactOwnerId == request.auth.uid || resource.data.verifierId == request.auth.uid));
+      allow create: if signedIn()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.weight == 0
+        && request.resource.data.penalty == 0;
+      allow update: if signedIn()
+        && resource.data.status == 'pending'
+        && request.resource.data.verifierId == request.auth.uid
+        && request.resource.data.impactOwnerId != request.auth.uid;
+      allow delete: if isSuperAdmin();
     }
 
     match /audit_logs/{id} {
